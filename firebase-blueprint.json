@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Bus": {
+      "title": "Bus",
+      "description": "Represents a bus trip available for booking.",
+      "type": "object",
+      "properties": {
+        "operator": { "type": "string", "description": "The name of the bus operator." },
+        "from": { "type": "string", "description": "The departure city." },
+        "to": { "type": "string", "description": "The destination city." },
+        "departureTime": { "type": "string", "description": "The departure time (HH:mm)." },
+        "arrivalTime": { "type": "string", "description": "The arrival time (HH:mm)." },
+        "price": { "type": "number", "description": "The ticket price in USD." },
+        "totalSeats": { "type": "integer", "description": "The total number of seats on the bus." },
+        "availableSeats": { "type": "integer", "description": "The number of currently available seats." },
+        "amenities": { "type": "array", "items": { "type": "string" }, "description": "List of amenities available on the bus." }
+      },
+      "required": ["operator", "from", "to", "departureTime", "arrivalTime", "price", "totalSeats", "availableSeats"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Represents a seat reservation made by a user.",
+      "type": "object",
+      "properties": {
+        "busId": { "type": "string", "description": "The ID of the bus trip." },
+        "userId": { "type": "string", "description": "The UID of the user who made the booking." },
+        "passengerName": { "type": "string", "description": "The name of the passenger." },
+        "seatNumber": { "type": "string", "description": "The selected seat number (e.g., A1)." },
+        "bookingDate": { "type": "string", "format": "date-time", "description": "The date and time the booking was made." },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled"], "description": "The status of the booking." }
+      },
+      "required": ["busId", "userId", "passengerName", "seatNumber", "bookingDate", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Represents a registered user in the system.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "The user's role in the system." }
+      },
+      "required": ["displayName", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/buses/{busId}": {
+      "schema": "Bus",
+      "description": "Collection of available bus trips."
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Collection of user bookings."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    }
+  }
+}
