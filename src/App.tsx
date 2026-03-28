@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bus as BusIcon, MapPin, Search, Calendar, ArrowRightLeft, Clock, Users, Wifi, Wind, Zap, Coffee, ChevronLeft, CheckCircle2, Download, Share2, Menu, X, Phone, Mail, Instagram, Twitter, Facebook, LogIn, LogOut, User as UserIcon, AlertCircle, Bell, Sliders } from 'lucide-react';
+import { Bus as BusIcon, MapPin, Search, Calendar, ArrowRightLeft, Clock, Users, Wifi, Wind, Zap, Coffee, ChevronLeft, CheckCircle2, Download, Share2, Menu, X, Phone, Mail, Instagram, Twitter, Facebook, LogIn, LogOut, User as UserIcon, AlertCircle, Bell, Sliders, LayoutDashboard } from 'lucide-react';
 import { SearchForm } from './components/SearchForm';
 import { BusCard } from './components/BusCard';
 import { SeatPicker } from './components/SeatPicker';
@@ -19,8 +19,9 @@ import { UserProfile } from './components/UserProfile';
 import { Notifications } from './components/Notifications';
 import { ScrollToTop } from './components/ScrollToTop';
 import { BusCardSkeleton } from './components/SkeletonLoader';
+import { AdminDashboard } from './components/AdminDashboard';
 
-type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications';
+type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications' | 'admin';
 
 function MainApp() {
   const [user, setUser] = useState<User | null>(null);
@@ -33,6 +34,7 @@ function MainApp() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<View>('home');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [sortBy, setSortBy] = useState<'price' | 'departure' | 'availability'>('price');
   const [filterOperator, setFilterOperator] = useState<string | null>(null);
 
@@ -44,21 +46,32 @@ function MainApp() {
       setIsAuthReady(true);
       
       if (currentUser) {
-        // Create/Update user profile in Firestore
+        // Fetch/Update user profile in Firestore
         try {
           const userRef = doc(db, 'users', currentUser.uid);
+          const userSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', currentUser.uid)));
+          let userRole = 'user';
+          
+          if (!userSnap.empty) {
+            userRole = userSnap.docs[0].data().role || 'user';
+          }
+
+          setIsAdmin(userRole === 'admin' || currentUser.email === 'praisesamasunga04@gmail.com');
+
           await setDoc(userRef, {
             uid: currentUser.uid,
             email: currentUser.email,
             displayName: currentUser.displayName,
             photoURL: currentUser.photoURL,
             lastLogin: new Date().toISOString(),
-            role: 'user'
+            role: userRole
           }, { merge: true });
-          console.log('User profile synced with Firestore');
+          console.log('User profile synced. Role:', userRole);
         } catch (error) {
           console.error('Error updating user profile in Firestore:', error);
         }
+      } else {
+        setIsAdmin(false);
       }
     });
     return () => unsubscribe();
@@ -249,6 +262,15 @@ function MainApp() {
                   >
                     <UserIcon size={20} />
                   </button>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => navigateTo('admin')}
+                      className="p-2 text-orange-600 hover:text-orange-700 transition-colors animate-pulse"
+                      title="Admin Panel"
+                    >
+                      <LayoutDashboard size={20} />
+                    </button>
+                  )}
                   <button 
                     onClick={handleLogout}
                     className="p-2 text-gray-400 hover:text-red-500 transition-colors"
@@ -310,6 +332,12 @@ function MainApp() {
                           <span className="text-[10px] font-black uppercase tracking-widest">Alerts</span>
                           <span className="absolute top-3 right-8 w-2 h-2 bg-orange-600 rounded-full border-2 border-orange-50" />
                         </button>
+                        {isAdmin && (
+                          <button onClick={() => navigateTo('admin')} className="p-4 bg-orange-600 text-white rounded-2xl flex flex-col items-center gap-2 transition-all active:scale-95 shadow-lg shadow-orange-100 col-span-2">
+                             <LayoutDashboard size={24} />
+                             <span className="text-[10px] font-black uppercase tracking-widest">Admin Console</span>
+                          </button>
+                        )}
                       </div>
                       <button onClick={handleLogout} className="w-full text-center text-red-500 font-black text-sm uppercase tracking-widest py-2">Logout</button>
                     </div>
@@ -655,6 +683,18 @@ function MainApp() {
               exit={{ opacity: 0, y: -20 }}
             >
               <Support onBack={() => setCurrentView('home')} />
+            </motion.div>
+          )}
+
+          {currentView === 'admin' && isAdmin && (
+            <motion.div
+              key="admin"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-screen bg-gray-50 -mx-4 -mt-12 lg:-mx-8 lg:-mt-12 relative z-50"
+            >
+              <AdminDashboard onExit={() => setCurrentView('home')} />
             </motion.div>
           )}
         </AnimatePresence>
