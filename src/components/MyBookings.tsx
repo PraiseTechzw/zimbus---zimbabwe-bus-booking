@@ -4,6 +4,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Booking, Bus } from '../types';
 import { Calendar, Clock, MapPin, Bus as BusIcon, ChevronLeft, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, User, CreditCard, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { BookingSkeleton } from './SkeletonLoader';
 
 interface MyBookingsProps {
   onBack: () => void;
@@ -53,9 +54,10 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ onBack }) => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <div className="w-10 h-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" />
-        <p className="text-gray-500 font-bold">Fetching your bookings...</p>
+      <div className="max-w-4xl mx-auto px-4 py-12 space-y-8">
+        <BookingSkeleton />
+        <BookingSkeleton />
+        <BookingSkeleton />
       </div>
     );
   }

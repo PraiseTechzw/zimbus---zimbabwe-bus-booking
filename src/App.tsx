@@ -9,7 +9,7 @@ import { Bus, Booking } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, googleProvider, OperationType, handleFirestoreError } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, query, where, onSnapshot, addDoc, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 import { MyBookings } from './components/MyBookings';
 import { RoutesList } from './components/RoutesList';
@@ -18,6 +18,7 @@ import { Support } from './components/Support';
 import { UserProfile } from './components/UserProfile';
 import { Notifications } from './components/Notifications';
 import { ScrollToTop } from './components/ScrollToTop';
+import { BusCardSkeleton } from './components/SkeletonLoader';
 
 type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications';
 
@@ -122,23 +123,31 @@ function MainApp() {
   };
 
   const handleConfirmBooking = async (seat: string) => {
-    if (!user) {
+    if (!user || !selectedBus) {
       handleLogin();
       return;
     }
 
     try {
       const bookingData: Partial<Booking> = {
-        busId: selectedBus!.id,
+        busId: selectedBus.id,
         userId: user.uid,
         passengerName: user.displayName || 'Anonymous',
         seatNumber: seat,
         status: 'confirmed',
         bookingDate: new Date().toISOString(),
-        totalPrice: selectedBus!.price
+        totalPrice: selectedBus.price
       };
 
+      // 1. Create the booking record
       await addDoc(collection(db, 'bookings'), bookingData);
+
+      // 2. Decrement the available seats for this bus in Firestore
+      const busRef = doc(db, 'buses', selectedBus.id);
+      await updateDoc(busRef, {
+        availableSeats: selectedBus.availableSeats - 1
+      });
+
       setSelectedSeat(seat);
       setIsBookingConfirmed(true);
       setCurrentView('confirmation');
@@ -489,23 +498,44 @@ function MainApp() {
                   >
                     Seats
                   </button>
+
+                  <div className="w-px h-6 bg-gray-100 mx-2 hidden lg:block" />
+                  
+                  <div className="flex items-center gap-2 ml-2">
+                    <select 
+                      value={filterOperator || ''} 
+                      onChange={(e) => setFilterOperator(e.target.value || null)}
+                      className="bg-transparent text-[10px] font-black uppercase tracking-widest text-gray-400 outline-none cursor-pointer hover:text-orange-600 transition-colors"
+                    >
+                      <option value="">All Operators</option>
+                      {[...new Set((searchResults || []).map(b => b.operator))].map(op => (
+                        <option key={op} value={op}>{op}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-6">
-                {(searchResults || [])
-                  .sort((a, b) => {
-                    if (sortBy === 'price') return a.price - b.price;
-                    if (sortBy === 'departure') return a.departureTime.localeCompare(b.departureTime);
-                    if (sortBy === 'availability') return b.availableSeats - a.availableSeats;
-                    return 0;
-                  })
-                  .map(bus => (
-                    <BusCard key={bus.id} bus={bus} onSelect={handleSelectBus} />
-                  ))
-                }
-                
-                {searchResults.length === 0 && (
+                {!searchResults ? (
+                  <div className="space-y-6">
+                    <BusCardSkeleton />
+                    <BusCardSkeleton />
+                    <BusCardSkeleton />
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  searchResults
+                    .filter(bus => !filterOperator || bus.operator === filterOperator)
+                    .sort((a, b) => {
+                      if (sortBy === 'price') return a.price - b.price;
+                      if (sortBy === 'departure') return a.departureTime.localeCompare(b.departureTime);
+                      if (sortBy === 'availability') return b.availableSeats - a.availableSeats;
+                      return 0;
+                    })
+                    .map(bus => (
+                      <BusCard key={bus.id} bus={bus} onSelect={handleSelectBus} />
+                    ))
+                ) : (
                   <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-gray-100 text-center space-y-6">
                     <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto text-gray-200">
                       <Search size={48} />

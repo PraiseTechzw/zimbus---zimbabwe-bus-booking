@@ -4,6 +4,9 @@ import { Bus } from '../types';
 import { motion } from 'motion/react';
 import { User as FirebaseUser } from 'firebase/auth';
 
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+
 interface SeatPickerProps {
   bus: Bus;
   onBack: () => void;
@@ -14,14 +17,43 @@ interface SeatPickerProps {
 
 export const SeatPicker: React.FC<SeatPickerProps> = ({ bus, onBack, onConfirm, user, onLogin }) => {
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
+  const [occupiedSeats, setOccupiedSeats] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Real-time occupied seats subscription
+  React.useEffect(() => {
+    const bookingsRef = collection(db, 'bookings');
+    const q = query(bookingsRef, where('busId', '==', bus.id), where('status', '==', 'confirmed'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const seats = snapshot.docs.map(doc => doc.data().seatNumber);
+      setOccupiedSeats(seats);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [bus.id]);
 
   // Seat generation: 4 seats per row, 10 rows
   const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
   const leftCols = [1, 2];
   const rightCols = [3, 4];
-
-  // Mock occupied seats
-  const occupiedSeats = ['A1', 'B2', 'C3', 'D4', 'E1', 'F2', 'G4', 'H1', 'J2'];
+  
+  if (isLoading) {
+    return (
+      <div className="glass-morphism rounded-[3rem] p-24 flex flex-col items-center justify-center gap-8 text-center min-h-[600px]">
+        <div className="relative">
+          <div className="w-20 h-20 border-4 border-orange-500/10 rounded-full" />
+          <div className="absolute top-0 left-0 w-20 h-20 border-4 border-orange-600 border-t-transparent rounded-full animate-spin" />
+          <BusIcon className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-orange-600 animate-pulse" size={32} />
+        </div>
+        <div className="space-y-2">
+          <p className="text-xl font-black text-gray-900 tracking-tight">Syncing Live Map</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] animate-pulse">Checking seat availability...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="glass-morphism rounded-[3rem] p-10 shadow-2xl border-white/50 max-w-5xl mx-auto overflow-hidden">
