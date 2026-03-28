@@ -2,19 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Booking, Bus } from '../types';
-import { Calendar, Clock, MapPin, Bus as BusIcon, ChevronLeft, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, User, CreditCard, Info } from 'lucide-react';
+import { Calendar, Clock, MapPin, Bus as BusIcon, ChevronLeft, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, User, CreditCard, Info, Navigation } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookingSkeleton } from './SkeletonLoader';
 
 interface MyBookingsProps {
   onBack: () => void;
+  onTrack: (bus: Bus) => void;
 }
 
 interface BookingWithBus extends Booking {
   bus?: Bus;
 }
 
-export const MyBookings: React.FC<MyBookingsProps> = ({ onBack }) => {
+export const MyBookings: React.FC<MyBookingsProps> = ({ onBack, onTrack }) => {
   const [bookings, setBookings] = useState<BookingWithBus[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -252,11 +253,19 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ onBack }) => {
                           </div>
                         </div>
 
-                        <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                          <AlertCircle size={18} className="text-blue-500 shrink-0 mt-0.5" />
-                          <p className="text-xs text-blue-700 leading-relaxed">
-                            Please arrive at the terminal at least 30 minutes before departure. Present your digital ticket or booking ID at the boarding gate.
-                          </p>
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (booking.bus) onTrack(booking.bus);
+                            }}
+                            className="flex-1 bg-gray-900 text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-orange-950/10 active:scale-95 flex items-center justify-center gap-2"
+                          >
+                            <Navigation size={14} className="text-orange-500" /> Live Track Trip
+                          </button>
+                          <button className="flex-1 bg-white text-red-500 border border-red-100 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">
+                            Cancel Booking
+                          </button>
                         </div>
                       </div>
                     </div>

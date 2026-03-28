@@ -20,8 +20,9 @@ import { Notifications } from './components/Notifications';
 import { ScrollToTop } from './components/ScrollToTop';
 import { BusCardSkeleton } from './components/SkeletonLoader';
 import { AdminDashboard } from './components/AdminDashboard';
+import { LiveTracking } from './components/LiveTracking';
 
-type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications' | 'admin';
+type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications' | 'admin' | 'tracking';
 
 function MainApp() {
   const [user, setUser] = useState<User | null>(null);
@@ -649,7 +650,13 @@ function MainApp() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
             >
-              <MyBookings onBack={() => setCurrentView('home')} />
+              <MyBookings 
+                onBack={() => setCurrentView('home')} 
+                onTrack={(bus) => {
+                  setSelectedBus(bus);
+                  setCurrentView('tracking');
+                }}
+              />
             </motion.div>
           )}
 
@@ -695,6 +702,17 @@ function MainApp() {
               className="min-h-screen bg-gray-50 -mx-4 -mt-12 lg:-mx-8 lg:-mt-12 relative z-50"
             >
               <AdminDashboard onExit={() => setCurrentView('home')} />
+            </motion.div>
+          )}
+
+          {currentView === 'tracking' && selectedBus && (
+            <motion.div
+              key="tracking"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <LiveTracking bus={selectedBus} onBack={() => setCurrentView('my-bookings')} />
             </motion.div>
           )}
         </AnimatePresence>
