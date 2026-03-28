@@ -17,6 +17,7 @@ import { OperatorsList } from './components/OperatorsList';
 import { Support } from './components/Support';
 import { UserProfile } from './components/UserProfile';
 import { Notifications } from './components/Notifications';
+import { ScrollToTop } from './components/ScrollToTop';
 
 type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications';
 
@@ -197,6 +198,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
+      <ScrollToTop view={currentView} />
       {/* Navigation */}
       <nav className="glass-morphism sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
