@@ -16,7 +16,7 @@ export const ZIM_CITIES: City[] = [
 export const BUS_OPERATORS = [
   'Intercape',
   'CAG Travellers',
-  'Zupco Bus Services',
+  'Zupco',
   'Pioneer Coaches',
   'City Link',
   'Extra City',
@@ -81,7 +81,7 @@ const buildRoutePrice = (durationMinutes: number, operatorIndex: number): number
 };
 
 const buildSeatCapacity = (operator: string): number => {
-  if (operator === 'Zupco Bus Services') return 65;
+  if (operator === 'Zupco') return 65;
   if (operator === 'Intercape') return 50;
   return 55;
 };
