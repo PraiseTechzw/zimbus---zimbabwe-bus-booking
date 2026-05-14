@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Bus as BusIcon, MapPin, Search, Calendar, ArrowRightLeft, Clock, Users, Wifi, Wind, Zap, Coffee, ChevronLeft, CheckCircle2, Download, Share2, Menu, X, Phone, Mail, Instagram, Twitter, Facebook, LogIn, LogOut, User as UserIcon, AlertCircle, Bell, Sliders, LayoutDashboard } from 'lucide-react';
 import { SearchForm } from './components/SearchForm';
 import { BusCard } from './components/BusCard';
@@ -62,6 +62,55 @@ function MainApp() {
   const [returnBus, setReturnBus] = useState<Bus | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
 
+  const parseDepartureToMinutes = (time: string): number => {
+    const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$/);
+    if (!match) return Number.MAX_SAFE_INTEGER;
+
+    let hours = Number.parseInt(match[1], 10);
+    const minutes = Number.parseInt(match[2], 10);
+    const period = match[3]?.toUpperCase();
+
+    if (period) {
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+    }
+
+    return hours * 60 + minutes;
+  };
+
+  const availableOperators = useMemo(() => {
+    if (!searchResults) return [];
+
+    return Array.from(new Set(searchResults.map((bus) => bus.operator))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [searchResults]);
+
+  const visibleSearchResults = useMemo(() => {
+    if (!searchResults) return [];
+
+    const filtered = searchResults.filter(
+      (bus) => !filterOperator || bus.operator === filterOperator
+    );
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'price') return a.price - b.price;
+      if (sortBy === 'availability') return b.availableSeats - a.availableSeats;
+
+      const aTime = parseDepartureToMinutes(a.departureTime);
+      const bTime = parseDepartureToMinutes(b.departureTime);
+      if (aTime !== bTime) return aTime - bTime;
+
+      return a.departureTime.localeCompare(b.departureTime);
+    });
+  }, [searchResults, filterOperator, sortBy]);
+
+  useEffect(() => {
+    if (filterOperator && !availableOperators.includes(filterOperator)) {
+      setFilterOperator(null);
+    }
+  }, [filterOperator, availableOperators]);
+
   // Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -109,8 +158,8 @@ function MainApp() {
     const unsubscribe = onSnapshot(busesRef, (snapshot) => {
       const busList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus));
       
-      if (user && busList.length < MOCK_BUSES.length) {
-        // Seed database if missing buses and user is present
+      if (busList.length < MOCK_BUSES.length) {
+        // Seed database if route inventory is below generated network size.
         seedBuses(busList);
       } else {
         setBuses(busList);
@@ -151,6 +200,8 @@ function MainApp() {
       bus.to.toLowerCase() === to.toLowerCase()
     );
     setSearchResults(results);
+    setFilterOperator(null);
+    setSortBy('price');
     setCurrentView('results');
   };
 
@@ -524,7 +575,7 @@ function MainApp() {
                     </div>
                     <span className="font-black text-[10px] uppercase tracking-[0.2em] group-hover:text-orange-600">New Search</span>
                   </button>
-                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">{searchResults.length} Buses Available</h2>
+                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">{visibleSearchResults.length} Buses Available</h2>
                   <p className="text-gray-500 font-medium">Found for your selected route</p>
                 </div>
 
@@ -560,7 +611,7 @@ function MainApp() {
                       className="bg-transparent text-[10px] font-black uppercase tracking-widest text-gray-400 outline-none cursor-pointer hover:text-orange-600 transition-colors"
                     >
                       <option value="">All Operators</option>
-                      {[...new Set((searchResults || []).map(b => b.operator))].map(op => (
+                      {availableOperators.map(op => (
                         <option key={op} value={op}>{op}</option>
                       ))}
                     </select>
@@ -575,18 +626,10 @@ function MainApp() {
                     <BusCardSkeleton />
                     <BusCardSkeleton />
                   </div>
-                ) : searchResults.length > 0 ? (
-                  searchResults
-                    .filter(bus => !filterOperator || bus.operator === filterOperator)
-                    .sort((a, b) => {
-                      if (sortBy === 'price') return a.price - b.price;
-                      if (sortBy === 'departure') return a.departureTime.localeCompare(b.departureTime);
-                      if (sortBy === 'availability') return b.availableSeats - a.availableSeats;
-                      return 0;
-                    })
-                    .map(bus => (
-                      <BusCard key={bus.id} bus={bus} onSelect={handleSelectBus} />
-                    ))
+                ) : visibleSearchResults.length > 0 ? (
+                  visibleSearchResults.map(bus => (
+                    <BusCard key={bus.id} bus={bus} onSelect={handleSelectBus} />
+                  ))
                 ) : (
                   <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-gray-100 text-center space-y-6">
                     <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto text-gray-200">
@@ -595,7 +638,9 @@ function MainApp() {
                     <div className="space-y-2">
                       <h3 className="text-2xl font-black text-gray-900 tracking-tight">No buses found</h3>
                       <p className="text-gray-500 font-medium max-w-sm mx-auto">
-                        We couldn't find any buses for your search. Try searching for a different date or route.
+                        {searchResults.length > 0
+                          ? 'No buses match the selected operator filter. Try choosing All Operators.'
+                          : 'We could not find any buses for your search. Try a different route or date.'}
                       </p>
                     </div>
                     <button 
@@ -823,6 +868,8 @@ function MainApp() {
                   setSearchResults(buses.filter((b) => 
                     b.from === params.from && b.to === params.to
                   ));
+                  setFilterOperator(null);
+                  setSortBy('price');
                   setCurrentView('results');
                 }}
               />

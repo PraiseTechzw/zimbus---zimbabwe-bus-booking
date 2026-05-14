@@ -16,252 +16,112 @@ export const ZIM_CITIES: City[] = [
 export const BUS_OPERATORS = [
   'Intercape',
   'CAG Travellers',
-  'Zupco',
+  'Zupco Bus Services',
   'Pioneer Coaches',
   'City Link',
   'Extra City',
   'Rimbi Tours',
 ];
 
-export const MOCK_BUSES: Bus[] = [
-  {
-    id: '1',
-    operator: 'Intercape',
-    from: 'Harare',
-    to: 'Bulawayo',
-    departureTime: '08:00',
-    arrivalTime: '14:00',
-    price: 25,
-    totalSeats: 40,
-    availableSeats: 12,
-    amenities: ['WiFi', 'AC', 'Charging'],
-  },
-  {
-    id: '2',
-    operator: 'CAG Travellers',
-    from: 'Harare',
-    to: 'Mutare',
-    departureTime: '09:30',
-    arrivalTime: '13:00',
-    price: 15,
-    totalSeats: 60,
-    availableSeats: 45,
-    amenities: ['AC'],
-  },
-  {
-    id: '3',
-    operator: 'City Link',
-    from: 'Bulawayo',
-    to: 'Victoria Falls',
-    departureTime: '07:00',
-    arrivalTime: '12:30',
-    price: 35,
-    totalSeats: 40,
-    availableSeats: 5,
-    amenities: ['WiFi', 'AC', 'Refreshments'],
-  },
-  {
-    id: '4',
-    operator: 'Zupco',
-    from: 'Harare',
-    to: 'Gweru',
-    departureTime: '06:00',
-    arrivalTime: '10:30',
-    price: 12,
-    totalSeats: 65,
-    availableSeats: 30,
-    amenities: ['AC'],
-  },
-  {
-    id: '5',
-    operator: 'Rimbi Tours',
-    from: 'Harare',
-    to: 'Beitbridge',
-    departureTime: '20:00',
-    arrivalTime: '04:30',
-    price: 30,
-    totalSeats: 55,
-    availableSeats: 22,
-    amenities: ['WiFi', 'Charging', 'Refreshments'],
-  },
-  {
-    id: '6',
-    operator: 'Extra City',
-    from: 'Bulawayo',
-    to: 'Harare',
-    departureTime: '13:00',
-    arrivalTime: '19:00',
-    price: 20,
-    totalSeats: 50,
-    availableSeats: 15,
-    amenities: ['AC', 'Charging'],
-  },
-  {
-    id: '7',
-    operator: 'Pioneer Coaches',
-    from: 'Mutare',
-    to: 'Harare',
-    departureTime: '05:30',
-    arrivalTime: '09:00',
-    price: 15,
-    totalSeats: 45,
-    availableSeats: 10,
-    amenities: ['WiFi', 'AC'],
-  },
-  {
-    id: '8',
-    operator: 'Intercape',
-    from: 'Harare',
-    to: 'Victoria Falls',
-    departureTime: '18:30',
-    arrivalTime: '06:30',
-    price: 45,
-    totalSeats: 40,
-    availableSeats: 8,
-    amenities: ['WiFi', 'AC', 'Charging', 'Refreshments', 'Entertainment'],
-  },
-  {
-    id: '9',
-    operator: 'CAG Travellers',
-    from: 'Masvingo',
-    to: 'Harare',
-    departureTime: '10:00',
-    arrivalTime: '14:30',
-    price: 18,
-    totalSeats: 60,
-    availableSeats: 35,
-    amenities: ['AC'],
-  },
-  {
-    id: '10',
-    operator: 'City Link',
-    from: 'Harare',
-    to: 'Bulawayo',
-    departureTime: '15:30',
-    arrivalTime: '21:30',
-    price: 28,
-    totalSeats: 40,
-    availableSeats: 18,
-    amenities: ['WiFi', 'AC', 'Refreshments'],
-  },
-  {
-    id: '11',
-    operator: 'Rimbi Tours',
-    from: 'Gweru',
-    to: 'Bulawayo',
-    departureTime: '08:45',
-    arrivalTime: '11:15',
-    price: 10,
-    totalSeats: 55,
-    availableSeats: 40,
-    amenities: ['Charging'],
-  },
-  {
-    id: '12',
-    operator: 'Extra City',
-    from: 'Victoria Falls',
-    to: 'Bulawayo',
-    departureTime: '14:00',
-    arrivalTime: '19:30',
-    price: 32,
-    totalSeats: 50,
-    availableSeats: 25,
-    amenities: ['AC', 'WiFi'],
-  },
-  {
-    id: '13',
-    operator: 'Zupco',
-    from: 'Kwekwe',
-    to: 'Harare',
-    departureTime: '07:15',
-    arrivalTime: '10:45',
-    price: 10,
-    totalSeats: 65,
-    availableSeats: 40,
-    amenities: ['AC'],
-  },
-  {
-    id: '14',
-    operator: 'Pioneer Coaches',
-    from: 'Kadoma',
-    to: 'Bulawayo',
-    departureTime: '09:00',
-    arrivalTime: '13:30',
-    price: 18,
-    totalSeats: 45,
-    availableSeats: 20,
-    amenities: ['WiFi'],
-  },
-  {
-    id: '15',
-    operator: 'CAG Travellers',
-    from: 'Chinhoyi',
-    to: 'Harare',
-    departureTime: '06:30',
-    arrivalTime: '08:30',
-    price: 8,
-    totalSeats: 60,
-    availableSeats: 15,
-    amenities: ['AC'],
-  },
-  {
-    id: '16',
-    operator: 'Intercape',
-    from: 'Beitbridge',
-    to: 'Masvingo',
-    departureTime: '11:00',
-    arrivalTime: '15:00',
-    price: 22,
-    totalSeats: 40,
-    availableSeats: 30,
-    amenities: ['WiFi', 'AC', 'Refreshments'],
-  },
-  {
-    id: '17',
-    operator: 'City Link',
-    from: 'Gweru',
-    to: 'Kwekwe',
-    departureTime: '16:00',
-    arrivalTime: '17:00',
-    price: 5,
-    totalSeats: 40,
-    availableSeats: 35,
-    amenities: ['WiFi', 'AC'],
-  },
-  {
-    id: '18',
-    operator: 'Rimbi Tours',
-    from: 'Harare',
-    to: 'Kadoma',
-    departureTime: '14:30',
-    arrivalTime: '16:30',
-    price: 10,
-    totalSeats: 55,
-    availableSeats: 10,
-    amenities: ['Charging'],
-  },
-  {
-    id: '19',
-    operator: 'Extra City',
-    from: 'Bulawayo',
-    to: 'Victoria Falls',
-    departureTime: '22:00',
-    arrivalTime: '04:00',
-    price: 35,
-    totalSeats: 50,
-    availableSeats: 45,
-    amenities: ['AC', 'Charging'],
-  },
-  {
-    id: '20',
-    operator: 'CAG Travellers',
-    from: 'Mutare',
-    to: 'Masvingo',
-    departureTime: '08:00',
-    arrivalTime: '13:00',
-    price: 20,
-    totalSeats: 60,
-    availableSeats: 50,
-    amenities: ['AC'],
-  },
+const CITY_WEIGHT: Record<string, number> = {
+  Harare: 0,
+  Chinhoyi: 1.5,
+  Kadoma: 2,
+  Kwekwe: 3,
+  Gweru: 4,
+  Masvingo: 5,
+  Mutare: 4,
+  Bulawayo: 6.5,
+  Beitbridge: 8,
+  'Victoria Falls': 10,
+};
+
+const DEPARTURE_SLOTS = ['05:30', '07:00', '08:30', '10:00', '12:30', '14:00', '16:30', '19:00', '21:30'];
+
+const AMENITY_PACKS: string[][] = [
+  ['AC'],
+  ['AC', 'Charging'],
+  ['WiFi', 'AC', 'Charging'],
+  ['WiFi', 'AC', 'Charging', 'Refreshments'],
+  ['WiFi', 'AC', 'Charging', 'Refreshments', 'Entertainment'],
 ];
+
+const toMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const toTime = (totalMinutes: number): string => {
+  const safeMinutes = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hours = Math.floor(safeMinutes / 60).toString().padStart(2, '0');
+  const minutes = (safeMinutes % 60).toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const estimateDurationMinutes = (from: string, to: string): number => {
+  const fromWeight = CITY_WEIGHT[from] ?? 0;
+  const toWeight = CITY_WEIGHT[to] ?? 0;
+  const weightGap = Math.abs(fromWeight - toWeight);
+
+  // 90-minute minimum, scaled by relative corridor distance.
+  return Math.max(90, Math.round((1.5 + weightGap * 1.15) * 60));
+};
+
+const buildAmenities = (durationMinutes: number, routeIndex: number): string[] => {
+  if (durationMinutes >= 8 * 60) return AMENITY_PACKS[4];
+  if (durationMinutes >= 6 * 60) return AMENITY_PACKS[3];
+  if (durationMinutes >= 4 * 60) return AMENITY_PACKS[2];
+  return AMENITY_PACKS[routeIndex % 2 === 0 ? 1 : 0];
+};
+
+const buildRoutePrice = (durationMinutes: number, operatorIndex: number): number => {
+  const base = Math.round(durationMinutes / 18);
+  const operatorDelta = operatorIndex % 3;
+  return Math.max(6, base + operatorDelta);
+};
+
+const buildSeatCapacity = (operator: string): number => {
+  if (operator === 'Zupco Bus Services') return 65;
+  if (operator === 'Intercape') return 50;
+  return 55;
+};
+
+const generateZimbabweRouteNetwork = (): Bus[] => {
+  const buses: Bus[] = [];
+  let idCounter = 1;
+
+  ZIM_CITIES.forEach((fromCity, fromIndex) => {
+    ZIM_CITIES.forEach((toCity, toIndex) => {
+      if (fromCity.name === toCity.name) return;
+
+      const operatorIndex = (fromIndex * 3 + toIndex * 5) % BUS_OPERATORS.length;
+      const operator = BUS_OPERATORS[operatorIndex];
+      const departureTime = DEPARTURE_SLOTS[(fromIndex + toIndex) % DEPARTURE_SLOTS.length];
+      const durationMinutes = estimateDurationMinutes(fromCity.name, toCity.name);
+      const arrivalTime = toTime(toMinutes(departureTime) + durationMinutes);
+      const price = buildRoutePrice(durationMinutes, operatorIndex);
+      const totalSeats = buildSeatCapacity(operator);
+      const availabilitySeed = (fromIndex * 7 + toIndex * 11 + operatorIndex * 3) % 18;
+      const availableSeats = Math.max(6, totalSeats - (availabilitySeed + 4));
+      const amenities = buildAmenities(durationMinutes, fromIndex + toIndex);
+
+      buses.push({
+        id: String(idCounter++),
+        operator,
+        from: fromCity.name,
+        to: toCity.name,
+        departureTime,
+        arrivalTime,
+        price,
+        totalSeats,
+        availableSeats,
+        amenities,
+      });
+    });
+  });
+
+  return buses;
+};
+
+export const MOCK_BUSES: Bus[] = generateZimbabweRouteNetwork();
+
