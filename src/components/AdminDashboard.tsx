@@ -7,6 +7,25 @@ import {
 } from 'lucide-react';
 import { Bus, Booking } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, deleteDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+
+interface AdminUserRecord {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  lastLogin: string;
+}
+
+type BookingFormState = {
+  passengerName: string;
+  seatNumber: string;
+  totalPrice: string;
+  status: Booking['status'];
+  paymentStatus: NonNullable<Booking['paymentStatus']>;
+  paymentMethod: NonNullable<Booking['paymentMethod']>;
+};
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -24,16 +43,27 @@ interface DashboardStats {
   refundsIssued: number;
 }
 
-type AdminTab = 'overview' | 'bookings' | 'payments' | 'users' | 'operators' | 'reports';
+type AdminTab = 'overview' | 'bookings' | 'payments' | 'users' | 'roles' | 'operators' | 'reports';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isAdmin }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
+  const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'cancelled' | 'pending'>('all');
   const [showStats, setShowStats] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [bookingForm, setBookingForm] = useState<BookingFormState>({
+    passengerName: '',
+    seatNumber: '',
+    totalPrice: '',
+    status: 'confirmed',
+    paymentStatus: 'completed',
+    paymentMethod: 'cash',
+  });
   const [stats, setStats] = useState<DashboardStats>({
     totalBookings: 0,
     totalRevenue: 0,
@@ -61,103 +91,177 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isAdmin 
     );
   }
 
-  // Mock data fetch
   useEffect(() => {
-    const mockBookings: Booking[] = [
-      {
-        id: 'BK001',
-        busId: 'BUS001',
-        userId: 'user1',
-        passengerName: 'John Doe',
-        passengerEmail: 'john@example.com',
-        passengerPhone: '+263771234567',
-        seatNumber: 'A1',
-        bookingDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'confirmed',
-        totalPrice: 125,
-        paymentStatus: 'completed',
-        paymentMethod: 'paynow',
-        numberOfPassengers: 1
-      },
-      {
-        id: 'BK002',
-        busId: 'BUS002',
-        userId: 'user2',
-        passengerName: 'Jane Smith',
-        passengerEmail: 'jane@example.com',
-        passengerPhone: '+263781234567',
-        seatNumber: 'B3',
-        bookingDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'confirmed',
-        totalPrice: 150,
-        paymentStatus: 'completed',
-        paymentMethod: 'card',
-        numberOfPassengers: 1
-      },
-      {
-        id: 'BK003',
-        busId: 'BUS001',
-        userId: 'user3',
-        passengerName: 'David Wilson',
-        passengerEmail: 'david@example.com',
-        passengerPhone: '+263791234567',
-        seatNumber: 'C2',
-        bookingDate: new Date().toISOString(),
-        status: 'confirmed',
-        totalPrice: 200,
-        paymentStatus: 'pending',
-        paymentMethod: 'paynow',
-        numberOfPassengers: 2
-      },
-      {
-        id: 'BK004',
-        busId: 'BUS003',
-        userId: 'user4',
-        passengerName: 'Sarah Johnson',
-        passengerEmail: 'sarah@example.com',
-        passengerPhone: '+263801234567',
-        seatNumber: 'D1',
-        bookingDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'cancelled',
-        totalPrice: 180,
-        paymentStatus: 'refunded',
-        paymentMethod: 'card',
-        cancelledDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        cancellationReason: 'Change of plans',
-        numberOfPassengers: 1
-      },
-      {
-        id: 'BK005',
-        busId: 'BUS002',
-        userId: 'user5',
-        passengerName: 'Michael Brown',
-        passengerEmail: 'michael@example.com',
-        passengerPhone: '+263711234567',
-        seatNumber: 'E4',
-        bookingDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'confirmed',
-        totalPrice: 175,
-        paymentStatus: 'completed',
-        paymentMethod: 'wallet',
-        numberOfPassengers: 1
-      }
-    ];
+    const bookingsUnsub = onSnapshot(collection(db, 'bookings'), (snapshot) => {
+      const nextBookings = snapshot.docs.map((document) => {
+        const data = document.data() as Partial<Booking>;
+        return {
+          id: document.id,
+          busId: data.busId || '',
+          userId: data.userId || '',
+          passengerName: data.passengerName || 'Unknown Passenger',
+          passengerEmail: data.passengerEmail || '',
+          passengerPhone: data.passengerPhone || '',
+          passengerIdNumber: data.passengerIdNumber,
+          seatNumber: data.seatNumber || '--',
+          bookingDate: data.bookingDate || new Date().toISOString(),
+          status: data.status || 'pending',
+          totalPrice: data.totalPrice || 0,
+          paymentStatus: data.paymentStatus || 'pending',
+          paymentMethod: data.paymentMethod || 'cash',
+          promoCode: data.promoCode,
+          discountAmount: data.discountAmount,
+          cancellationReason: data.cancellationReason,
+          cancelledDate: data.cancelledDate,
+          isRoundTrip: data.isRoundTrip,
+          returnSeatNumber: data.returnSeatNumber,
+          numberOfPassengers: data.numberOfPassengers || 1,
+          rating: data.rating,
+          review: data.review,
+        } as Booking;
+      });
 
-    const mockStats: DashboardStats = {
-      totalBookings: 456,
-      totalRevenue: 68420,
-      totalPassengers: 892,
-      activeOperators: 12,
-      completedTrips: 234,
-      pendingPayments: 15,
-      cancelledBookings: 23,
-      refundsIssued: 3480
+      setBookings(nextBookings);
+      setLoading(false);
+    });
+
+    const busesUnsub = onSnapshot(collection(db, 'buses'), (snapshot) => {
+      const nextBuses = snapshot.docs.map((document) => ({ id: document.id, ...document.data() } as Bus));
+      setBuses(nextBuses);
+      setLoading(false);
+    });
+
+    const usersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const nextUsers = snapshot.docs.map((document) => {
+        const data = document.data() as Partial<AdminUserRecord> & { email?: string; displayName?: string; role?: string; lastLogin?: string };
+        return {
+          id: document.id,
+          email: data.email || '',
+          displayName: data.displayName || 'Unnamed User',
+          role: data.role || 'user',
+          lastLogin: data.lastLogin || '',
+        };
+      });
+
+      setUsers(nextUsers);
+      setLoading(false);
+    });
+
+    return () => {
+      bookingsUnsub();
+      busesUnsub();
+      usersUnsub();
     };
-
-    setBookings(mockBookings);
-    setStats(mockStats);
-    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    const completedBookings = bookings.filter((booking) => booking.paymentStatus === 'completed');
+    const cancelledBookings = bookings.filter((booking) => booking.status === 'cancelled');
+    const refundedBookings = bookings.filter((booking) => booking.paymentStatus === 'refunded');
+    const pendingBookings = bookings.filter((booking) => booking.paymentStatus === 'pending');
+
+    setStats({
+      totalBookings: bookings.length,
+      totalRevenue: completedBookings.reduce((sum, booking) => sum + booking.totalPrice, 0),
+      totalPassengers: bookings.reduce((sum, booking) => sum + (booking.numberOfPassengers || 1), 0),
+      activeOperators: new Set(buses.map((bus) => bus.operator)).size,
+      completedTrips: completedBookings.length,
+      pendingPayments: pendingBookings.length,
+      cancelledBookings: cancelledBookings.length,
+      refundsIssued: refundedBookings.reduce((sum, booking) => sum + booking.totalPrice, 0),
+    });
+  }, [bookings, buses]);
+
+  useEffect(() => {
+    if (!editingBooking) return;
+
+    setBookingForm({
+      passengerName: editingBooking.passengerName || '',
+      seatNumber: editingBooking.seatNumber || '',
+      totalPrice: String(editingBooking.totalPrice || 0),
+      status: editingBooking.status,
+      paymentStatus: editingBooking.paymentStatus || 'pending',
+      paymentMethod: editingBooking.paymentMethod || 'cash',
+    });
+  }, [editingBooking]);
+
+  const withActionLoading = async (bookingId: string, action: () => Promise<void>) => {
+    setActionLoadingId(bookingId);
+    try {
+      await action();
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenEdit = (booking: Booking) => {
+    setEditingBooking(booking);
+  };
+
+  const handleSaveBooking = async () => {
+    if (!editingBooking) return;
+
+    await withActionLoading(editingBooking.id, async () => {
+      await updateDoc(doc(db, 'bookings', editingBooking.id), {
+        passengerName: bookingForm.passengerName.trim(),
+        seatNumber: bookingForm.seatNumber.trim(),
+        totalPrice: Number(bookingForm.totalPrice) || 0,
+        status: bookingForm.status,
+        paymentStatus: bookingForm.paymentStatus,
+        paymentMethod: bookingForm.paymentMethod,
+      });
+      setEditingBooking(null);
+    });
+  };
+
+  const handleCancelBooking = async (booking: Booking) => {
+    const reason = window.prompt('Enter cancellation reason', booking.cancellationReason || 'Admin cancellation');
+    if (reason === null) return;
+
+    await withActionLoading(booking.id, async () => {
+      await updateDoc(doc(db, 'bookings', booking.id), {
+        status: 'cancelled',
+        cancellationReason: reason.trim() || 'Admin cancellation',
+        cancelledDate: new Date().toISOString(),
+      });
+    });
+  };
+
+  const handleRefundBooking = async (booking: Booking) => {
+    const reason = window.prompt('Enter refund note', 'Admin approved refund');
+    if (reason === null) return;
+
+    await withActionLoading(booking.id, async () => {
+      await updateDoc(doc(db, 'bookings', booking.id), {
+        status: 'cancelled',
+        paymentStatus: 'refunded',
+        cancellationReason: reason.trim() || 'Admin approved refund',
+        cancelledDate: new Date().toISOString(),
+      });
+    });
+  };
+
+  const handleDeleteBooking = async (booking: Booking) => {
+    const confirmed = window.confirm(`Delete booking ${booking.id}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    await withActionLoading(booking.id, async () => {
+      await deleteDoc(doc(db, 'bookings', booking.id));
+    });
+  };
+
+  const handleUpdateUserRole = async (userId: string, role: string) => {
+    await updateDoc(doc(db, 'users', userId), {
+      role,
+    });
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    const confirmed = window.confirm('Delete this user record from Firestore?');
+    if (!confirmed) return;
+
+    await deleteDoc(doc(db, 'users', userId));
+  };
 
   const filteredBookings = bookings.filter(b => {
     const matchesSearch = b.passengerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -224,7 +328,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isAdmin 
 
         {/* Tab Navigation */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2 border-b border-gray-200">
-          {(['overview', 'bookings', 'payments', 'users', 'operators', 'reports'] as const).map(tab => (
+          {(['overview', 'bookings', 'payments', 'users', 'roles', 'operators', 'reports'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -250,13 +354,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isAdmin 
               filterStatus={filterStatus}
               setFilterStatus={setFilterStatus}
               loading={loading}
+              onEditBooking={handleOpenEdit}
+              onCancelBooking={handleCancelBooking}
+              onRefundBooking={handleRefundBooking}
+              onDeleteBooking={handleDeleteBooking}
+              actionLoadingId={actionLoadingId}
             />
           )}
           {activeTab === 'payments' && <PaymentsTab bookings={bookings} stats={stats} />}
-          {activeTab === 'users' && <UsersTab />}
+          {activeTab === 'users' && <UsersTab users={users} loading={loading} />}
+          {activeTab === 'roles' && <RoleManagementTab users={users} onUpdateRole={handleUpdateUserRole} onDeleteUser={handleDeleteUser} loading={loading} />}
           {activeTab === 'operators' && <OperatorsTab stats={stats} />}
           {activeTab === 'reports' && <ReportsTab stats={stats} />}
         </AnimatePresence>
+        <BookingEditModal
+          booking={editingBooking}
+          form={bookingForm}
+          setForm={setBookingForm}
+          onClose={() => setEditingBooking(null)}
+          onSave={handleSaveBooking}
+        />
       </div>
     </div>
   );
@@ -363,7 +480,12 @@ const BookingsTab: React.FC<{
   filterStatus: string;
   setFilterStatus: (s: any) => void;
   loading: boolean;
-}> = ({ bookings, searchQuery, setSearchQuery, filterStatus, setFilterStatus, loading }) => (
+  onEditBooking: (booking: Booking) => void;
+  onCancelBooking: (booking: Booking) => void;
+  onRefundBooking: (booking: Booking) => void;
+  onDeleteBooking: (booking: Booking) => void;
+  actionLoadingId: string | null;
+}> = ({ bookings, searchQuery, setSearchQuery, filterStatus, setFilterStatus, loading, onEditBooking, onCancelBooking, onRefundBooking, onDeleteBooking, actionLoadingId }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
     {/* Search & Filter */}
     <div className="flex gap-4 flex-wrap">
@@ -436,12 +558,18 @@ const BookingsTab: React.FC<{
                   </span>
                 </td>
                 <td className="px-6 py-4 font-bold text-gray-900 capitalize">{booking.paymentMethod || 'N/A'}</td>
-                <td className="px-6 py-4 flex gap-2">
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="View">
-                    <Eye size={16} className="text-blue-600" />
+                <td className="px-6 py-4 flex gap-2 flex-wrap">
+                  <button disabled={actionLoadingId === booking.id} onClick={() => onEditBooking(booking)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50" title="Edit booking">
+                    <Edit2 size={16} className="text-gray-700" />
                   </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Delete">
-                    <Trash2 size={16} className="text-red-500" />
+                  <button disabled={actionLoadingId === booking.id} onClick={() => onCancelBooking(booking)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50" title="Cancel booking">
+                    <X size={16} className="text-red-500" />
+                  </button>
+                  <button disabled={actionLoadingId === booking.id} onClick={() => onRefundBooking(booking)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50" title="Refund booking">
+                    <DollarSign size={16} className="text-orange-600" />
+                  </button>
+                  <button disabled={actionLoadingId === booking.id} onClick={() => onDeleteBooking(booking)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50" title="Delete booking">
+                    <Trash2 size={16} className="text-red-700" />
                   </button>
                 </td>
               </motion.tr>
@@ -530,23 +658,184 @@ const PaymentsTab: React.FC<{ bookings: Booking[]; stats: DashboardStats }> = ({
 };
 
 // Users Tab
-const UsersTab: React.FC = () => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-8 border border-gray-100">
-    <h3 className="font-black text-lg text-gray-900 mb-4">👥 User Management</h3>
-    <div className="space-y-4">
-      <div className="p-4 bg-gray-50 rounded-lg flex items-center justify-between">
+const UsersTab: React.FC<{ users: AdminUserRecord[]; loading: boolean }> = ({ users, loading }) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    <div className="bg-white rounded-2xl p-8 border border-gray-100">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="font-bold text-gray-900">Total Users: 1,250</p>
-          <p className="text-sm text-gray-600">Active this month: 892</p>
+          <h3 className="font-black text-lg text-gray-900">👥 User Management</h3>
+          <p className="text-sm text-gray-600 mt-1">Live Firebase users collection</p>
         </div>
-        <Users size={32} className="text-blue-600" />
+        <div className="text-right">
+          <p className="text-3xl font-black text-blue-600">{users.length}</p>
+          <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">Users</p>
+        </div>
       </div>
-      <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all">
-        View All Users
-      </button>
+
+      {loading ? (
+        <div className="py-16 text-center text-gray-500 font-bold">Loading users...</div>
+      ) : users.length === 0 ? (
+        <div className="py-16 text-center text-gray-500 font-bold">No users found in Firestore yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {users.slice(0, 12).map((user) => (
+            <div key={user.id} className="p-4 bg-gray-50 rounded-xl flex items-center justify-between gap-4">
+              <div>
+                <p className="font-black text-gray-900">{user.displayName}</p>
+                <p className="text-sm text-gray-600">{user.email}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-black uppercase tracking-widest text-orange-600">{user.role}</p>
+                <p className="text-xs text-gray-500">{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'No login yet'}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   </motion.div>
 );
+
+const RoleManagementTab: React.FC<{
+  users: AdminUserRecord[];
+  onUpdateRole: (userId: string, role: string) => Promise<void>;
+  onDeleteUser: (userId: string) => Promise<void>;
+  loading: boolean;
+}> = ({ users, onUpdateRole, onDeleteUser, loading }) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    <div className="bg-white rounded-2xl p-8 border border-gray-100">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="font-black text-lg text-gray-900">🔐 Role Management</h3>
+          <p className="text-sm text-gray-600 mt-1">Manage admin access directly in Firestore</p>
+        </div>
+        <div className="text-right">
+          <p className="text-3xl font-black text-orange-600">{users.filter((user) => user.role === 'admin').length}</p>
+          <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">Admins</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-16 text-center text-gray-500 font-bold">Loading role records...</div>
+      ) : users.length === 0 ? (
+        <div className="py-16 text-center text-gray-500 font-bold">No Firestore users found yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {users.map((user) => (
+            <div key={user.id} className="p-4 rounded-2xl border border-gray-100 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p className="font-black text-gray-900">{user.displayName}</p>
+                <p className="text-sm text-gray-600">{user.email}</p>
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <select
+                  value={user.role || 'user'}
+                  onChange={(event) => void onUpdateRole(user.id, event.target.value)}
+                  className="px-4 py-3 rounded-xl border border-gray-200 bg-white font-black text-sm uppercase tracking-widest outline-none"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button
+                  onClick={() => void onDeleteUser(user.id)}
+                  className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-black text-sm uppercase tracking-widest hover:bg-red-100 transition-all"
+                >
+                  Remove User
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </motion.div>
+);
+
+const BookingEditModal: React.FC<{
+  booking: Booking | null;
+  form: BookingFormState;
+  setForm: React.Dispatch<React.SetStateAction<BookingFormState>>;
+  onClose: () => void;
+  onSave: () => Promise<void>;
+}> = ({ booking, form, setForm, onClose, onSave }) => {
+  if (!booking) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm flex items-center justify-center px-4"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 24, scale: 0.98 }}
+          className="w-full max-w-2xl bg-white rounded-[2rem] border border-gray-100 shadow-2xl overflow-hidden"
+        >
+          <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-white flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Edit Booking</p>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight mt-1">{booking.id}</h3>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <X size={20} className="text-gray-500" />
+            </button>
+          </div>
+
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Passenger Name</span>
+              <input value={form.passengerName} onChange={(event) => setForm((current) => ({ ...current, passengerName: event.target.value }))} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20" />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Seat Number</span>
+              <input value={form.seatNumber} onChange={(event) => setForm((current) => ({ ...current, seatNumber: event.target.value }))} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20" />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Total Price</span>
+              <input type="number" value={form.totalPrice} onChange={(event) => setForm((current) => ({ ...current, totalPrice: event.target.value }))} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20" />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Status</span>
+              <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as Booking['status'] }))} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20">
+                <option value="confirmed">Confirmed</option>
+                <option value="pending">Pending</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Payment Status</span>
+              <select value={form.paymentStatus} onChange={(event) => setForm((current) => ({ ...current, paymentStatus: event.target.value as BookingFormState['paymentStatus'] }))} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20">
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Payment Method</span>
+              <select value={form.paymentMethod} onChange={(event) => setForm((current) => ({ ...current, paymentMethod: event.target.value as BookingFormState['paymentMethod'] }))} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20">
+                <option value="paynow">PayNow</option>
+                <option value="card">Card</option>
+                <option value="cash">Cash</option>
+                <option value="wallet">Wallet</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="px-6 pb-6 flex items-center justify-end gap-3">
+            <button onClick={onClose} className="px-5 py-3 rounded-2xl border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-sm">Cancel</button>
+            <button onClick={() => void onSave()} className="px-5 py-3 rounded-2xl custom-gradient text-white font-black uppercase tracking-widest text-sm">Save Changes</button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 // Operators Tab
 const OperatorsTab: React.FC<{ stats: DashboardStats }> = ({ stats }) => (

@@ -8,7 +8,7 @@ import { MOCK_BUSES, ZIM_CITIES } from './constants';
 import { Bus, Booking } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, googleProvider, OperationType, handleFirestoreError } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, addDoc, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 // Feature Components
@@ -34,6 +34,7 @@ import { GroupBooking } from './components/GroupBooking';
 import { BusReviews } from './components/BusReviews';
 import { EnhancedSeatMap } from './components/EnhancedSeatMap';
 import { NotificationSettings } from './components/NotificationSettings';
+import { AuthModal } from './components/AuthModal';
 
 type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications' | 'admin' | 'tracking' | 'passenger-details' | 'payment' | 'promo-code' | 'group-booking' | 'round-trip' | 'wallet' | 'reviews' | 'seat-map-enhanced' | 'notification-settings';
 
@@ -51,6 +52,7 @@ function MainApp() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [sortBy, setSortBy] = useState<'price' | 'departure' | 'availability'>('price');
   const [filterOperator, setFilterOperator] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
   // New Booking Flow State
   const [passengerDetails, setPassengerDetails] = useState<any>(null);
@@ -129,7 +131,7 @@ function MainApp() {
             userRole = userSnap.docs[0].data().role || 'user';
           }
 
-          setIsAdmin(userRole === 'admin' || currentUser.email === 'praisesamasunga04@gmail.com');
+          setIsAdmin(userRole === 'admin');
 
           await setDoc(userRef, {
             uid: currentUser.uid,
@@ -244,7 +246,11 @@ function MainApp() {
     }
   };
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
+    setIsAuthModalOpen(true);
+  };
+
+  const handleGoogleLogin = async () => {
     try {
       console.log('Attempting Google Sign-In...');
       const result = await signInWithPopup(auth, googleProvider);
@@ -259,6 +265,27 @@ function MainApp() {
         alert(`Login failed: ${error.message}. Please Check if your domain is authorized in Firebase console.`);
       }
     }
+  };
+
+  const handleEmailAuth = async ({
+    email,
+    password,
+    mode,
+  }: {
+    email: string;
+    password: string;
+    mode: 'signin' | 'signup';
+  }) => {
+    if (mode === 'signup') {
+      await createUserWithEmailAndPassword(auth, email, password);
+      return;
+    }
+
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const handlePasswordReset = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
   };
 
   const handleLogout = async () => {
@@ -284,6 +311,12 @@ function MainApp() {
     window.scrollTo(0, 0);
   };
 
+  useEffect(() => {
+    if (user) {
+      setIsAuthModalOpen(false);
+    }
+  }, [user]);
+
   if (!isAuthReady || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
@@ -296,6 +329,13 @@ function MainApp() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
       <ScrollToTop view={currentView} />
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onGoogleSignIn={handleGoogleLogin}
+        onEmailSubmit={handleEmailAuth}
+        onResetPassword={handlePasswordReset}
+      />
       {/* Navigation */}
       <nav className="glass-morphism sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
