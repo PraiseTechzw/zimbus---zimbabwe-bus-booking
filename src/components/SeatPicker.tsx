@@ -22,16 +22,48 @@ export const SeatPicker: React.FC<SeatPickerProps> = ({ bus, onBack, onConfirm, 
 
   // Real-time occupied seats subscription
   React.useEffect(() => {
-    const bookingsRef = collection(db, 'bookings');
-    const q = query(bookingsRef, where('busId', '==', bus.id), where('status', '==', 'confirmed'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const seats = snapshot.docs.map(doc => doc.data().seatNumber);
-      setOccupiedSeats(seats);
-      setIsLoading(false);
-    });
+    setIsLoading(true);
 
-    return () => unsubscribe();
+    // Fallback: avoid trapping users in a loading state if realtime sync is slow or unavailable.
+    const loadingTimeout = window.setTimeout(() => {
+      setIsLoading(false);
+    }, 6000);
+
+    try {
+      const bookingsRef = collection(db, 'bookings');
+      const q = query(bookingsRef, where('busId', '==', bus.id), where('status', '==', 'confirmed'));
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const seats = snapshot.docs
+            .map((doc) => doc.data().seatNumber)
+            .filter((seat): seat is string => typeof seat === 'string');
+
+          window.clearTimeout(loadingTimeout);
+          setOccupiedSeats(seats);
+          setIsLoading(false);
+        },
+        () => {
+          window.clearTimeout(loadingTimeout);
+          setOccupiedSeats([]);
+          setIsLoading(false);
+        }
+      );
+
+      return () => {
+        window.clearTimeout(loadingTimeout);
+        unsubscribe();
+      };
+    } catch {
+      window.clearTimeout(loadingTimeout);
+      setOccupiedSeats([]);
+      setIsLoading(false);
+
+      return () => {
+        window.clearTimeout(loadingTimeout);
+      };
+    }
   }, [bus.id]);
 
   // Seat generation: 4 seats per row, 10 rows

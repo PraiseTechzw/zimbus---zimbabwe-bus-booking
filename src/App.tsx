@@ -11,6 +11,7 @@ import { auth, db, googleProvider, OperationType, handleFirestoreError } from '.
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, addDoc, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 
+// Feature Components
 import { MyBookings } from './components/MyBookings';
 import { RoutesList } from './components/RoutesList';
 import { OperatorsList } from './components/OperatorsList';
@@ -22,7 +23,19 @@ import { BusCardSkeleton } from './components/SkeletonLoader';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LiveTracking } from './components/LiveTracking';
 
-type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications' | 'admin' | 'tracking';
+// New Booking Flow Components
+import { PassengerDetails } from './components/PassengerDetails';
+import { BookingCancellation } from './components/BookingCancellation';
+import { Payment } from './components/Payment';
+import { PromoCodeManager } from './components/PromoCodeManager';
+import { Wallet } from './components/Wallet';
+import { RoundTripSearch } from './components/RoundTripSearch';
+import { GroupBooking } from './components/GroupBooking';
+import { BusReviews } from './components/BusReviews';
+import { EnhancedSeatMap } from './components/EnhancedSeatMap';
+import { NotificationSettings } from './components/NotificationSettings';
+
+type View = 'home' | 'results' | 'seats' | 'confirmation' | 'my-bookings' | 'routes' | 'operators' | 'support' | 'profile' | 'notifications' | 'admin' | 'tracking' | 'passenger-details' | 'payment' | 'promo-code' | 'group-booking' | 'round-trip' | 'wallet' | 'reviews' | 'seat-map-enhanced' | 'notification-settings';
 
 function MainApp() {
   const [user, setUser] = useState<User | null>(null);
@@ -38,6 +51,16 @@ function MainApp() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [sortBy, setSortBy] = useState<'price' | 'departure' | 'availability'>('price');
   const [filterOperator, setFilterOperator] = useState<string | null>(null);
+  
+  // New Booking Flow State
+  const [passengerDetails, setPassengerDetails] = useState<any>(null);
+  const [appliedPromoCode, setAppliedPromoCode] = useState<any>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paynow' | 'card' | 'wallet'>('paynow');
+  const [groupPassengers, setGroupPassengers] = useState<any[]>([]);
+  const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [returnBus, setReturnBus] = useState<Bus | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
 
   // Auth Listener
   useEffect(() => {
@@ -701,7 +724,7 @@ function MainApp() {
               exit={{ opacity: 0 }}
               className="min-h-screen bg-gray-50 -mx-4 -mt-12 lg:-mx-8 lg:-mt-12 relative z-50"
             >
-              <AdminDashboard onExit={() => setCurrentView('home')} />
+              <AdminDashboard onBack={() => setCurrentView('home')} isAdmin={isAdmin} />
             </motion.div>
           )}
 
@@ -713,6 +736,207 @@ function MainApp() {
               exit={{ opacity: 0, scale: 0.95 }}
             >
               <LiveTracking bus={selectedBus} onBack={() => setCurrentView('my-bookings')} />
+            </motion.div>
+          )}
+
+          {/* New Booking Flow Views */}
+          {currentView === 'passenger-details' && selectedBus && (
+            <motion.div
+              key="passenger-details"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <PassengerDetails 
+                onBack={() => setCurrentView('seats')}
+                onConfirm={(details) => {
+                  setPassengerDetails(details);
+                  setCurrentView('promo-code');
+                }}
+              />
+            </motion.div>
+          )}
+
+          {currentView === 'promo-code' && selectedBus && (
+            <motion.div
+              key="promo-code"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <div className="space-y-6">
+                <button onClick={() => setCurrentView('passenger-details')} className="flex items-center gap-2 text-orange-600 font-bold">
+                  <ChevronLeft size={20} /> Back
+                </button>
+                <PromoCodeManager 
+                  onApplyCode={(code) => {
+                    setAppliedPromoCode(code);
+                    setDiscountAmount(code.discountValue);
+                  }}
+                  baseAmount={selectedBus.price * (groupPassengers.length || 1)}
+                  appliedCode={appliedPromoCode}
+                  onRemoveCode={() => {
+                    setAppliedPromoCode(null);
+                    setDiscountAmount(0);
+                  }}
+                />
+                <button 
+                  onClick={() => setCurrentView('payment')}
+                  className="w-full custom-gradient text-white py-4 rounded-xl font-bold"
+                >
+                  Continue to Payment
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {currentView === 'payment' && selectedBus && passengerDetails && (
+            <motion.div
+              key="payment"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <Payment 
+                amount={selectedBus.price * (groupPassengers.length || 1) - discountAmount}
+                bookingId={`BK${Date.now()}`}
+                passengerDetails={passengerDetails}
+                onSuccess={() => setCurrentView('confirmation')}
+                onBack={() => setCurrentView('promo-code')}
+              />
+            </motion.div>
+          )}
+
+          {currentView === 'round-trip' && (
+            <motion.div
+              key="round-trip"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <RoundTripSearch 
+                onSearch={(params) => {
+                  setSearchResults(buses.filter((b) => 
+                    b.from === params.from && b.to === params.to
+                  ));
+                  setCurrentView('results');
+                }}
+              />
+            </motion.div>
+          )}
+
+          {currentView === 'group-booking' && selectedBus && (
+            <motion.div
+              key="group-booking"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <GroupBooking 
+                busPrice={selectedBus.price}
+                availableSeats={selectedBus.availableSeats}
+                busOperator={selectedBus.operator}
+                onConfirm={(passengers) => {
+                  setGroupPassengers(passengers);
+                  setCurrentView('seats');
+                }}
+                onBack={() => setCurrentView('results')}
+              />
+            </motion.div>
+          )}
+
+          {currentView === 'wallet' && user && (
+            <motion.div
+              key="wallet"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <Wallet 
+                userId={user.uid}
+                onBack={() => setCurrentView('home')}
+              />
+            </motion.div>
+          )}
+
+          {currentView === 'reviews' && selectedBus && (
+            <motion.div
+              key="reviews"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <BusReviews 
+                busId={selectedBus.id}
+                busOperator={selectedBus.operator}
+                userId={user?.uid}
+                userName={user?.displayName || 'Anonymous'}
+                onBack={() => setCurrentView('results')}
+              />
+            </motion.div>
+          )}
+
+          {currentView === 'seat-map-enhanced' && selectedBus && (
+            <motion.div
+              key="seat-map-enhanced"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <div className="space-y-8">
+                <button onClick={() => setCurrentView('results')} className="flex items-center gap-2 text-orange-600 font-bold">
+                  <ChevronLeft size={20} /> Back to Results
+                </button>
+                <div className="bg-white rounded-2xl p-8 border border-gray-100">
+                  <EnhancedSeatMap 
+                    selectedSeats={selectedSeats}
+                    occupiedSeats={[]}
+                    onSeatSelect={(seat) => {
+                      setSelectedSeats(prev => 
+                        prev.includes(seat) 
+                          ? prev.filter(s => s !== seat)
+                          : [...prev, seat]
+                      );
+                    }}
+                    maxSeatsSelectable={groupPassengers.length || 1}
+                  />
+                </div>
+                <button 
+                  onClick={() => setCurrentView('passenger-details')}
+                  disabled={selectedSeats.length === 0}
+                  className="w-full custom-gradient text-white py-4 rounded-xl font-bold disabled:opacity-50"
+                >
+                  Continue with Selected Seats
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {currentView === 'notification-settings' && user && (
+            <motion.div
+              key="notification-settings"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <NotificationSettings 
+                userId={user.uid}
+                userEmail={user.email || ''}
+                userPhone={user.phoneNumber}
+                onSave={() => {
+                  alert('Notification preferences saved!');
+                  setCurrentView('profile');
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>

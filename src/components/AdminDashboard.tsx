@@ -1,453 +1,595 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, Bus as BusIcon, Users, Calendar, 
-  TrendingUp, Plus, Search, Edit2, Trash2, 
-  ChevronRight, ArrowUpRight, ArrowDownRight,
-  MoreVertical, CheckCircle2, XCircle, Clock,
-  MapPin, DollarSign, Filter, Download, Info
+import {
+  BarChart3, DollarSign, Users, Bus as BusIcon, TrendingUp, ChevronLeft,
+  Search, Filter, Download, Settings, Eye, EyeOff, AlertCircle, CheckCircle2,
+  Calendar, Clock, MapPin, CreditCard, Trash2, Edit2, Plus, X,
+  PieChart, Activity, Zap, Target, RefreshCw, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
 import { Bus, Booking } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AdminDashboardProps {
-  onExit: () => void;
+  onBack: () => void;
+  isAdmin: boolean;
 }
 
-type AdminTab = 'overview' | 'fleet' | 'bookings' | 'users';
+interface DashboardStats {
+  totalBookings: number;
+  totalRevenue: number;
+  totalPassengers: number;
+  activeOperators: number;
+  completedTrips: number;
+  pendingPayments: number;
+  cancelledBookings: number;
+  refundsIssued: number;
+}
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExit }) => {
+type AdminTab = 'overview' | 'bookings' | 'payments' | 'users' | 'operators' | 'reports';
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isAdmin }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
-  const [buses, setBuses] = useState<Bus[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAddingBus, setIsAddingBus] = useState(false);
-
-  // New Bus Form State
-  const [newBus, setNewBus] = useState<Partial<Bus>>({
-    operator: '',
-    from: '',
-    to: '',
-    departureTime: '',
-    arrivalTime: '',
-    price: 0,
-    totalSeats: 40,
-    availableSeats: 40,
-    amenities: ['WiFi', 'AC']
+  const [buses, setBuses] = useState<Bus[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'cancelled' | 'pending'>('all');
+  const [showStats, setShowStats] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalBookings: 0,
+    totalRevenue: 0,
+    totalPassengers: 0,
+    activeOperators: 0,
+    completedTrips: 0,
+    pendingPayments: 0,
+    cancelledBookings: 0,
+    refundsIssued: 0
   });
 
-  useEffect(() => {
-    // Subscribe to Buses
-    const busesUnsubscribe = onSnapshot(collection(db, 'buses'), (snapshot) => {
-      setBuses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bus)));
-    });
-
-    // Subscribe to Bookings
-    const bookingsUnsubscribe = onSnapshot(collection(db, 'bookings'), (snapshot) => {
-      setBookings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)));
-      setIsLoading(false);
-    });
-
-    return () => {
-      busesUnsubscribe();
-      bookingsUnsubscribe();
-    };
-  }, []);
-
-  const handleAddBus = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await addDoc(collection(db, 'buses'), newBus);
-      setIsAddingBus(false);
-      setNewBus({
-        operator: '',
-        from: '',
-        to: '',
-        departureTime: '',
-        arrivalTime: '',
-        price: 0,
-        totalSeats: 40,
-        availableSeats: 40,
-        amenities: ['WiFi', 'AC']
-      });
-    } catch (error) {
-      console.error('Error adding bus:', error);
-    }
-  };
-
-  const handleDeleteBus = async (id: string) => {
-    if (window.confirm('Are you sure you want to remove this bus from the fleet?')) {
-      try {
-        await deleteDoc(doc(db, 'buses', id));
-      } catch (error) {
-        console.error('Error deleting bus:', error);
-      }
-    }
-  };
-
-  const stats = [
-    { label: 'Total Revenue', value: `$${bookings.reduce((sum, b) => sum + b.totalPrice, 0)}`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: 'Total Bookings', value: bookings.length, icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Active Buses', value: buses.length, icon: BusIcon, color: 'text-orange-600', bg: 'bg-orange-50' },
-    { label: 'Registered Users', value: '1,284', icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
-  ];
-
-  if (isLoading) {
+  if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" />
+      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+        <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
+        <h1 className="text-2xl font-black text-gray-900">Access Denied</h1>
+        <p className="text-gray-500 mt-2">You don't have admin permissions to access this dashboard</p>
+        <button
+          onClick={onBack}
+          className="mt-6 custom-gradient text-white px-6 py-3 rounded-lg font-bold"
+        >
+          Back to Home
+        </button>
       </div>
     );
   }
 
+  // Mock data fetch
+  useEffect(() => {
+    const mockBookings: Booking[] = [
+      {
+        id: 'BK001',
+        busId: 'BUS001',
+        userId: 'user1',
+        passengerName: 'John Doe',
+        passengerEmail: 'john@example.com',
+        passengerPhone: '+263771234567',
+        seatNumber: 'A1',
+        bookingDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'confirmed',
+        totalPrice: 125,
+        paymentStatus: 'completed',
+        paymentMethod: 'paynow',
+        numberOfPassengers: 1
+      },
+      {
+        id: 'BK002',
+        busId: 'BUS002',
+        userId: 'user2',
+        passengerName: 'Jane Smith',
+        passengerEmail: 'jane@example.com',
+        passengerPhone: '+263781234567',
+        seatNumber: 'B3',
+        bookingDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'confirmed',
+        totalPrice: 150,
+        paymentStatus: 'completed',
+        paymentMethod: 'card',
+        numberOfPassengers: 1
+      },
+      {
+        id: 'BK003',
+        busId: 'BUS001',
+        userId: 'user3',
+        passengerName: 'David Wilson',
+        passengerEmail: 'david@example.com',
+        passengerPhone: '+263791234567',
+        seatNumber: 'C2',
+        bookingDate: new Date().toISOString(),
+        status: 'confirmed',
+        totalPrice: 200,
+        paymentStatus: 'pending',
+        paymentMethod: 'paynow',
+        numberOfPassengers: 2
+      },
+      {
+        id: 'BK004',
+        busId: 'BUS003',
+        userId: 'user4',
+        passengerName: 'Sarah Johnson',
+        passengerEmail: 'sarah@example.com',
+        passengerPhone: '+263801234567',
+        seatNumber: 'D1',
+        bookingDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'cancelled',
+        totalPrice: 180,
+        paymentStatus: 'refunded',
+        paymentMethod: 'card',
+        cancelledDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+        cancellationReason: 'Change of plans',
+        numberOfPassengers: 1
+      },
+      {
+        id: 'BK005',
+        busId: 'BUS002',
+        userId: 'user5',
+        passengerName: 'Michael Brown',
+        passengerEmail: 'michael@example.com',
+        passengerPhone: '+263711234567',
+        seatNumber: 'E4',
+        bookingDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'confirmed',
+        totalPrice: 175,
+        paymentStatus: 'completed',
+        paymentMethod: 'wallet',
+        numberOfPassengers: 1
+      }
+    ];
+
+    const mockStats: DashboardStats = {
+      totalBookings: 456,
+      totalRevenue: 68420,
+      totalPassengers: 892,
+      activeOperators: 12,
+      completedTrips: 234,
+      pendingPayments: 15,
+      cancelledBookings: 23,
+      refundsIssued: 3480
+    };
+
+    setBookings(mockBookings);
+    setStats(mockStats);
+    setLoading(false);
+  }, []);
+
+  const filteredBookings = bookings.filter(b => {
+    const matchesSearch = b.passengerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || b.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
-      {/* Sidebar */}
-      <aside className="w-full lg:w-72 bg-white border-r border-gray-100 p-8 flex flex-col gap-10">
-        <div className="flex items-center gap-3">
-          <div className="bg-orange-600 p-2.5 rounded-2xl text-white shadow-lg shadow-orange-100">
-            <LayoutDashboard size={24} />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <ChevronLeft size={24} />
+            </button>
+            <h1 className="text-2xl font-black text-gray-900">💼 Admin Dashboard</h1>
           </div>
-          <span className="text-2xl font-black tracking-tighter">Admin Portal</span>
+          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <RefreshCw size={24} className="text-gray-600 hover:animate-spin" />
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Stats Overview */}
+        {showStats && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"
+          >
+            <StatCard
+              icon={<DollarSign size={28} />}
+              label="Total Revenue"
+              value={`$${stats.totalRevenue.toLocaleString()}`}
+              change="+12.5%"
+              color="orange"
+            />
+            <StatCard
+              icon={<Users size={28} />}
+              label="Total Passengers"
+              value={stats.totalPassengers.toString()}
+              change="+8.2%"
+              color="blue"
+            />
+            <StatCard
+              icon={<BusIcon size={28} />}
+              label="Total Bookings"
+              value={stats.totalBookings.toString()}
+              change="+15.3%"
+              color="green"
+            />
+            <StatCard
+              icon={<AlertCircle size={28} />}
+              label="Pending Payments"
+              value={`$${(stats.pendingPayments * 150).toLocaleString()}`}
+              change={`${stats.pendingPayments} bookings`}
+              color="red"
+            />
+          </motion.div>
+        )}
+
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-2 border-b border-gray-200">
+          {(['overview', 'bookings', 'payments', 'users', 'operators', 'reports'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all uppercase tracking-widest ${
+                activeTab === tab
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
 
-        <nav className="flex flex-col gap-2 flex-1">
-          <button 
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'overview' ? 'bg-orange-600 text-white shadow-xl shadow-orange-100' : 'text-gray-500 hover:bg-gray-50'}`}
-          >
-            <TrendingUp size={20} /> Overview
-          </button>
-          <button 
-            onClick={() => setActiveTab('fleet')}
-            className={`flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'fleet' ? 'bg-orange-600 text-white shadow-xl shadow-orange-100' : 'text-gray-500 hover:bg-gray-50'}`}
-          >
-            <BusIcon size={20} /> Fleet Management
-          </button>
-          <button 
-            onClick={() => setActiveTab('bookings')}
-            className={`flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'bookings' ? 'bg-orange-600 text-white shadow-xl shadow-orange-100' : 'text-gray-500 hover:bg-gray-50'}`}
-          >
-            <Calendar size={20} /> All Bookings
-          </button>
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'users' ? 'bg-orange-600 text-white shadow-xl shadow-orange-100' : 'text-gray-500 hover:bg-gray-50'}`}
-          >
-            <Users size={20} /> User CRM
-          </button>
-        </nav>
-
-        <button 
-          onClick={onExit}
-          className="text-gray-400 font-bold text-sm uppercase tracking-widest hover:text-gray-900 transition-colors pt-10 border-t border-gray-50 text-center"
-        >
-          Exit Dashboard
-        </button>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-6 lg:p-12 space-y-12 overflow-y-auto max-h-screen">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="space-y-1">
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight">
-              {activeTab === 'overview' && 'Dashboard Overview'}
-              {activeTab === 'fleet' && 'Fleet Management'}
-              {activeTab === 'bookings' && 'Reservations'}
-              {activeTab === 'users' && 'User Management'}
-            </h1>
-            <p className="text-gray-500 font-medium">Monitoring platform activity in real-time.</p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button className="p-3 bg-white text-gray-400 rounded-2xl border border-gray-100 hover:text-gray-900 transition-all shadow-sm">
-              <Download size={20} />
-            </button>
-            <button className="p-3 bg-white text-gray-400 rounded-2xl border border-gray-100 hover:text-gray-900 transition-all shadow-sm">
-              <Filter size={20} />
-            </button>
-            {activeTab === 'fleet' && (
-              <button 
-                onClick={() => setIsAddingBus(true)}
-                className="flex items-center gap-3 bg-orange-600 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-100 active:scale-95"
-              >
-                <Plus size={20} /> Add Bus
-              </button>
-            )}
-          </div>
-        </header>
-
-        {activeTab === 'overview' && (
-          <div className="space-y-12">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-              {stats.map((stat, i) => (
-                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                  <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center`}>
-                    <stat.icon size={28} />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">{stat.label}</p>
-                    <p className="text-3xl font-black text-gray-900">{stat.value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-8">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-black text-gray-900 tracking-tight">Recent Bookings</h3>
-                  <button className="text-orange-600 font-bold text-xs uppercase tracking-widest hover:underline" onClick={() => setActiveTab('bookings')}>View All</button>
-                </div>
-                <div className="space-y-4">
-                  {bookings.slice(0, 5).map((booking, i) => (
-                    <div key={i} className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl hover:bg-orange-50 transition-all group border border-transparent hover:border-orange-100">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-orange-600 shadow-sm font-black">
-                          #{booking.seatNumber}
-                        </div>
-                        <div>
-                          <p className="font-black text-gray-900 tracking-tight">{booking.passengerName}</p>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            {new Date(booking.bookingDate).toLocaleDateString()} at {new Date(booking.bookingDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-gray-900">${booking.totalPrice}</p>
-                        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest">Confirmed</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm space-y-8">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-black text-gray-900 tracking-tight">Popular Destinations</h3>
-                  <button className="text-orange-600 font-bold text-xs uppercase tracking-widest hover:underline">Download Report</button>
-                </div>
-                <div className="space-y-6 pt-4">
-                   {[
-                     { city: 'Harare', share: '45%', count: 852, color: 'bg-orange-600' },
-                     { city: 'Bulawayo', share: '32%', count: 624, color: 'bg-blue-600' },
-                     { city: 'Victoria Falls', share: '15%', count: 321, color: 'bg-purple-600' },
-                     { city: 'Gweru', share: '8%', count: 154, color: 'bg-green-600' },
-                   ].map((dest, i) => (
-                     <div key={i} className="space-y-3">
-                       <div className="flex justify-between text-sm font-bold">
-                         <span className="text-gray-900">{dest.city}</span>
-                         <span className="text-gray-500">{dest.count} trips ({dest.share})</span>
-                       </div>
-                       <div className="h-3 bg-gray-50 rounded-full overflow-hidden">
-                         <div className={`h-full ${dest.color}`} style={{ width: dest.share }} />
-                       </div>
-                     </div>
-                   ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'fleet' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
-            <AnimatePresence>
-              {buses.map((bus) => (
-                <motion.div 
-                  layout
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  key={bus.id} 
-                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8 group hover:border-orange-200 transition-all"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
-                        <BusIcon size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-black text-xl text-gray-900 tracking-tight">{bus.operator}</h4>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fleet ID: {bus.id.slice(0, 8)}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                      <button className="p-3 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-xl transition-all">
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteBus(bus.id)}
-                        className="p-3 bg-red-50 text-red-500 hover:bg-red-600 hover:text-white rounded-xl transition-all"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6 py-4 border-y border-gray-50">
-                    <div className="flex-1">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">From</p>
-                      <p className="font-black text-gray-900">{bus.from}</p>
-                    </div>
-                    <div className="w-px h-8 bg-gray-100" />
-                    <div className="flex-1 text-right">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">To</p>
-                      <p className="font-black text-gray-900">{bus.to}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-2xl">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Inventory</p>
-                      <p className="font-black text-gray-900">{bus.availableSeats}/{bus.totalSeats} Seats</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Unit Price</p>
-                      <p className="font-black text-gray-900">${bus.price}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* User CRM & Full Bookings List could go here */}
-        {(activeTab === 'bookings' || activeTab === 'users') && (
-           <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center p-20 gap-6 text-center">
-              <div className="p-6 bg-orange-50 text-orange-600 rounded-[2rem] shadow-sm">
-                <Clock size={48} />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Expansion in Progress</h3>
-                <p className="text-gray-500 font-medium max-w-sm mx-auto">This module is currently being optimized for large-scale data visualization in the next build.</p>
-              </div>
-           </div>
-        )}
-      </main>
-
-      {/* Add Bus Modal */}
-      <AnimatePresence>
-        {isAddingBus && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 lg:p-12">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              onClick={() => setIsAddingBus(false)}
-              className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" 
+        {/* Tab Content */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'overview' && <OverviewTab stats={stats} bookings={bookings} />}
+          {activeTab === 'bookings' && (
+            <BookingsTab
+              bookings={filteredBookings}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              filterStatus={filterStatus}
+              setFilterStatus={setFilterStatus}
+              loading={loading}
             />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-10 overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-2 custom-gradient" />
-              
-              <div className="flex justify-between items-center mb-10">
-                <div className="space-y-1">
-                  <h3 className="text-3xl font-black text-gray-900 tracking-tight leading-none">Add New Bus</h3>
-                  <p className="text-gray-500 font-medium pt-2">Register a new unit to the fleet.</p>
-                </div>
-                <button 
-                  onClick={() => setIsAddingBus(false)}
-                  className="p-4 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-2xl transition-all"
-                >
-                  <XCircle size={24} />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddBus} className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Operator Name</label>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="e.g. City Link"
-                      value={newBus.operator}
-                      onChange={(e) => setNewBus({...newBus, operator: e.target.value})}
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-500 focus:bg-white rounded-2xl p-5 text-gray-900 font-bold outline-none transition-all shadow-inner"
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Base Price ($)</label>
-                    <input 
-                      required
-                      type="number" 
-                      placeholder="e.g. 25"
-                      value={newBus.price}
-                      onChange={(e) => setNewBus({...newBus, price: Number(e.target.value)})}
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-500 focus:bg-white rounded-2xl p-5 text-gray-900 font-bold outline-none transition-all shadow-inner"
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Departure City</label>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="e.g. Harare"
-                      value={newBus.from}
-                      onChange={(e) => setNewBus({...newBus, from: e.target.value})}
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-500 focus:bg-white rounded-2xl p-5 text-gray-900 font-bold outline-none transition-all shadow-inner"
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Arrival City</label>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="e.g. Bulawayo"
-                      value={newBus.to}
-                      onChange={(e) => setNewBus({...newBus, to: e.target.value})}
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-500 focus:bg-white rounded-2xl p-5 text-gray-900 font-bold outline-none transition-all shadow-inner"
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Departure Time</label>
-                    <input 
-                      required
-                      type="time" 
-                      value={newBus.departureTime}
-                      onChange={(e) => setNewBus({...newBus, departureTime: e.target.value})}
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-500 focus:bg-white rounded-2xl p-5 text-gray-900 font-bold outline-none transition-all shadow-inner"
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Arrival Time</label>
-                    <input 
-                      required
-                      type="time" 
-                      value={newBus.arrivalTime}
-                      onChange={(e) => setNewBus({...newBus, arrivalTime: e.target.value})}
-                      className="w-full bg-gray-50 border border-transparent focus:border-orange-500 focus:bg-white rounded-2xl p-5 text-gray-900 font-bold outline-none transition-all shadow-inner"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button 
-                    type="button"
-                    onClick={() => setIsAddingBus(false)}
-                    className="flex-1 bg-gray-100 text-gray-500 py-6 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    className="flex-1 bg-gray-900 text-white py-6 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95"
-                  >
-                    Confirm & Save
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+          )}
+          {activeTab === 'payments' && <PaymentsTab bookings={bookings} stats={stats} />}
+          {activeTab === 'users' && <UsersTab />}
+          {activeTab === 'operators' && <OperatorsTab stats={stats} />}
+          {activeTab === 'reports' && <ReportsTab stats={stats} />}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
+
+// Stat Card Component
+const StatCard: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  change: string;
+  color: 'orange' | 'blue' | 'green' | 'red';
+}> = ({ icon, label, value, change, color }) => {
+  const colors = {
+    orange: 'bg-orange-100 text-orange-600',
+    blue: 'bg-blue-100 text-blue-600',
+    green: 'bg-green-100 text-green-600',
+    red: 'bg-red-100 text-red-600'
+  };
+
+  return (
+    <motion.div whileHover={{ scale: 1.02 }} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-shadow">
+      <div className={`w-12 h-12 ${colors[color]} rounded-xl flex items-center justify-center mb-4`}>
+        {icon}
+      </div>
+      <p className="text-gray-600 text-sm font-bold uppercase tracking-widest">{label}</p>
+      <p className="text-3xl font-black text-gray-900 mt-2">{value}</p>
+      <p className="text-xs font-bold text-gray-500 mt-2">{change} from last month</p>
+    </motion.div>
+  );
+};
+
+// Overview Tab
+const OverviewTab: React.FC<{ stats: DashboardStats; bookings: Booking[] }> = ({ stats, bookings }) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Recent Bookings */}
+      <div className="bg-white rounded-2xl p-6 border border-gray-100">
+        <h3 className="font-black text-lg text-gray-900 mb-4">📋 Recent Bookings</h3>
+        <div className="space-y-3">
+          {bookings.slice(0, 5).map(booking => (
+            <motion.div key={booking.id} whileHover={{ x: 4 }} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-orange-50 transition-all cursor-pointer">
+              <div>
+                <p className="font-bold text-gray-900">{booking.passengerName}</p>
+                <p className="text-xs text-gray-500">{booking.id} • {booking.seatNumber}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-orange-600">${booking.totalPrice}</p>
+                <span className={`text-xs font-bold ${booking.status === 'confirmed' ? 'text-green-600' : 'text-gray-500'}`}>
+                  ✓ {booking.status}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Revenue Breakdown */}
+      <div className="bg-white rounded-2xl p-6 border border-gray-100">
+        <h3 className="font-black text-lg text-gray-900 mb-4">💵 Revenue Breakdown</h3>
+        <div className="space-y-4">
+          <div className="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
+            <p className="text-xs text-green-700 font-bold uppercase">Completed Payments</p>
+            <p className="text-2xl font-black text-green-600">${bookings.filter(b => b.paymentStatus === 'completed').reduce((sum, b) => sum + b.totalPrice, 0)}</p>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+            <p className="text-xs text-yellow-700 font-bold uppercase">Pending Payments</p>
+            <p className="text-2xl font-black text-yellow-600">${bookings.filter(b => b.paymentStatus === 'pending').reduce((sum, b) => sum + b.totalPrice, 0)}</p>
+          </div>
+          <div className="p-4 bg-red-50 rounded-lg border-l-4 border-red-500">
+            <p className="text-xs text-red-700 font-bold uppercase">Refunded</p>
+            <p className="text-2xl font-black text-red-600">${bookings.filter(b => b.paymentStatus === 'refunded').reduce((sum, b) => sum + b.totalPrice, 0)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Key Metrics */}
+    <div className="bg-white rounded-2xl p-6 border border-gray-100">
+      <h3 className="font-black text-lg text-gray-900 mb-6">📊 Key Metrics</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricBox label="Completed Trips" value={stats.completedTrips} icon={<CheckCircle2 className="text-green-600" />} />
+        <MetricBox label="Active Operators" value={stats.activeOperators} icon={<BusIcon className="text-blue-600" />} />
+        <MetricBox label="Cancelled" value={stats.cancelledBookings} icon={<X className="text-red-600" />} />
+        <MetricBox label="Refunds Issued" value={`$${stats.refundsIssued}`} icon={<DollarSign className="text-orange-600" />} />
+      </div>
+    </div>
+  </motion.div>
+);
+
+const MetricBox: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
+  <div className="bg-gray-50 rounded-lg p-4 text-center">
+    <div className="flex justify-center mb-2">{icon}</div>
+    <p className="text-2xl font-black text-gray-900">{value}</p>
+    <p className="text-xs text-gray-600 font-bold mt-1">{label}</p>
+  </div>
+);
+
+// Bookings Tab
+const BookingsTab: React.FC<{
+  bookings: Booking[];
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  filterStatus: string;
+  setFilterStatus: (s: any) => void;
+  loading: boolean;
+}> = ({ bookings, searchQuery, setSearchQuery, filterStatus, setFilterStatus, loading }) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    {/* Search & Filter */}
+    <div className="flex gap-4 flex-wrap">
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="🔍 Search by name or booking ID..."
+        className="flex-1 min-w-64 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-bold"
+      />
+      <select
+        value={filterStatus}
+        onChange={(e) => setFilterStatus(e.target.value)}
+        className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-bold"
+      >
+        <option value="all">All Status</option>
+        <option value="confirmed">✓ Confirmed</option>
+        <option value="pending">⏳ Pending</option>
+        <option value="cancelled">✕ Cancelled</option>
+      </select>
+      <button className="px-6 py-3 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition-all flex items-center gap-2">
+        <Download size={18} /> Export CSV
+      </button>
+    </div>
+
+    {/* Bookings Table */}
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Booking ID</th>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Passenger</th>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Seat</th>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Amount</th>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Status</th>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Payment</th>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Method</th>
+              <th className="px-6 py-4 text-left font-black text-gray-900">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {bookings.map(booking => (
+              <motion.tr key={booking.id} whileHover={{ backgroundColor: '#f9fafb' }} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 font-bold text-gray-900">{booking.id}</td>
+                <td className="px-6 py-4">
+                  <div>
+                    <p className="font-bold text-gray-900">{booking.passengerName}</p>
+                    <p className="text-xs text-gray-500">{booking.passengerEmail}</p>
+                  </div>
+                </td>
+                <td className="px-6 py-4 font-bold text-gray-900">{booking.seatNumber}</td>
+                <td className="px-6 py-4 font-black text-orange-600">${booking.totalPrice}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                    booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {booking.status === 'confirmed' ? '✓' : booking.status === 'cancelled' ? '✕' : '⏳'} {booking.status.toUpperCase()}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`text-xs font-bold ${
+                    booking.paymentStatus === 'completed' ? 'text-green-600' :
+                    booking.paymentStatus === 'pending' ? 'text-yellow-600' :
+                    'text-red-600'
+                  }`}>
+                    {booking.paymentStatus?.toUpperCase()}
+                  </span>
+                </td>
+                <td className="px-6 py-4 font-bold text-gray-900 capitalize">{booking.paymentMethod || 'N/A'}</td>
+                <td className="px-6 py-4 flex gap-2">
+                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="View">
+                    <Eye size={16} className="text-blue-600" />
+                  </button>
+                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Delete">
+                    <Trash2 size={16} className="text-red-500" />
+                  </button>
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </motion.div>
+);
+
+// Payments Tab
+const PaymentsTab: React.FC<{ bookings: Booking[]; stats: DashboardStats }> = ({ bookings, stats }) => {
+  const payments = bookings.map(b => ({
+    id: b.id,
+    passenger: b.passengerName,
+    amount: b.totalPrice,
+    method: b.paymentMethod || 'N/A',
+    status: b.paymentStatus || 'pending',
+    date: b.bookingDate
+  }));
+
+  const totalPaid = payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0);
+  const totalPending = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0);
+  const totalRefunded = payments.filter(p => p.status === 'refunded').reduce((sum, p) => sum + p.amount, 0);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      {/* Payment Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+          <p className="text-green-700 text-sm font-bold uppercase tracking-widest mb-2">✓ Completed</p>
+          <p className="text-4xl font-black text-green-700">${totalPaid.toLocaleString()}</p>
+        </div>
+        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-6 border border-yellow-200">
+          <p className="text-yellow-700 text-sm font-bold uppercase tracking-widest mb-2">⏳ Pending</p>
+          <p className="text-4xl font-black text-yellow-700">${totalPending.toLocaleString()}</p>
+        </div>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+          <p className="text-red-700 text-sm font-bold uppercase tracking-widest mb-2">↩️ Refunded</p>
+          <p className="text-4xl font-black text-red-700">${totalRefunded.toLocaleString()}</p>
+        </div>
+      </div>
+
+      {/* Payments Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left font-black text-gray-900">Payment ID</th>
+                <th className="px-6 py-4 text-left font-black text-gray-900">Passenger</th>
+                <th className="px-6 py-4 text-left font-black text-gray-900">Amount</th>
+                <th className="px-6 py-4 text-left font-black text-gray-900">Method</th>
+                <th className="px-6 py-4 text-left font-black text-gray-900">Status</th>
+                <th className="px-6 py-4 text-left font-black text-gray-900">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {payments.map(payment => (
+                <motion.tr key={payment.id} whileHover={{ backgroundColor: '#f9fafb' }} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 font-bold text-gray-900">{payment.id}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{payment.passenger}</td>
+                  <td className="px-6 py-4 font-black text-orange-600">${payment.amount}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900 capitalize">{payment.method}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      payment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      payment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {payment.status.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-gray-600">
+                    {new Date(payment.date).toLocaleDateString()}
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Users Tab
+const UsersTab: React.FC = () => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-8 border border-gray-100">
+    <h3 className="font-black text-lg text-gray-900 mb-4">👥 User Management</h3>
+    <div className="space-y-4">
+      <div className="p-4 bg-gray-50 rounded-lg flex items-center justify-between">
+        <div>
+          <p className="font-bold text-gray-900">Total Users: 1,250</p>
+          <p className="text-sm text-gray-600">Active this month: 892</p>
+        </div>
+        <Users size={32} className="text-blue-600" />
+      </div>
+      <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all">
+        View All Users
+      </button>
+    </div>
+  </motion.div>
+);
+
+// Operators Tab
+const OperatorsTab: React.FC<{ stats: DashboardStats }> = ({ stats }) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-white rounded-2xl p-6 border border-gray-100">
+        <h3 className="font-black text-lg text-gray-900 mb-4">🚌 Active Operators</h3>
+        <p className="text-4xl font-black text-green-600">{stats.activeOperators}</p>
+        <p className="text-sm text-gray-600 mt-2">Bus operators actively running services</p>
+      </div>
+      <div className="bg-white rounded-2xl p-6 border border-gray-100">
+        <h3 className="font-black text-lg text-gray-900 mb-4">✓ Completed Trips</h3>
+        <p className="text-4xl font-black text-orange-600">{stats.completedTrips}</p>
+        <p className="text-sm text-gray-600 mt-2">Successfully completed journeys</p>
+      </div>
+    </div>
+    <button className="w-full px-6 py-3 custom-gradient text-white rounded-lg font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2">
+      <Plus size={18} /> Add New Operator
+    </button>
+  </motion.div>
+);
+
+// Reports Tab
+const ReportsTab: React.FC<{ stats: DashboardStats }> = ({ stats }) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    <div className="bg-white rounded-2xl p-8 border border-gray-100">
+      <h3 className="font-black text-lg text-gray-900 mb-6">📈 System Reports</h3>
+      <div className="space-y-4">
+        <ReportOption title="📊 Revenue Report" description="Detailed revenue breakdown by operator and route" />
+        <ReportOption title="📈 Booking Analytics" description="Booking trends, patterns, and peak hours" />
+        <ReportOption title="👥 Customer Report" description="User behavior and satisfaction metrics" />
+        <ReportOption title="💰 Financial Summary" description="Complete financial overview and forecasts" />
+      </div>
+    </div>
+  </motion.div>
+);
+
+const ReportOption: React.FC<{ title: string; description: string }> = ({ title, description }) => (
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    className="w-full p-4 border-2 border-gray-200 rounded-lg text-left hover:border-orange-400 hover:bg-orange-50 transition-all"
+  >
+    <p className="font-bold text-gray-900">{title}</p>
+    <p className="text-sm text-gray-600">{description}</p>
+  </motion.button>
+);
