@@ -1,8 +1,8 @@
-# Contributing to ZimBus
+# Contributing to Inter Africa
 
 First off, thanks for taking the time to contribute! 🎉
 
-The following is a set of guidelines for contributing to ZimBus, a online bus booking platform for Zimbabwe. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
+The following is a set of guidelines for contributing to Inter Africa, an online bus booking platform for Zimbabwe. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
 
 ## 🗒️ Table of Contents
 

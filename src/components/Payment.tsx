@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CreditCard, AlertCircle, CheckCircle2, Loader2, ChevronLeft, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { PassengerDetails } from '../types';
+import { BRAND_NAME } from '../constants';
 
 interface PaymentProps {
   amount: number;
@@ -288,7 +289,7 @@ export const Payment: React.FC<PaymentProps> = ({
             </div>
             <div className="flex-1">
               <h4 className="font-black text-gray-900 flex items-center gap-2">
-                💳 ZimBus Wallet
+                💳 {BRAND_NAME} Wallet
               </h4>
               <p className="text-sm text-gray-600 mt-1">Use your wallet balance</p>
               <p className="text-xs text-amber-600 font-bold mt-2">ⓘ Coming Soon</p>

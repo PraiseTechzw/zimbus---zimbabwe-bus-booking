@@ -1,12 +1,12 @@
-# Firebase Setup Guide for ZimBus
+# Firebase Setup Guide for Inter Africa
 
-This document provides step-by-step instructions to set up the Firebase backend for the ZimBus platform.
+This document provides step-by-step instructions to set up the Firebase backend for the Inter Africa platform.
 
 ## 🚀 Steps to Setup
 
 ### 1. Create a Firebase Project
 1.  Go to the [Firebase Console](https://console.firebase.google.com/).
-2.  Click **"Add Project"** and name it `zimbus---zimbabwe-bus-booking` or similar.
+2.  Click **"Add Project"** and name it `inter-africa-booking` or similar.
 3.  (Optional) Enable Google Analytics.
 
 ### 2. Enable Authentication
@@ -25,7 +25,7 @@ This document provides step-by-step instructions to set up the Firebase backend 
 
 ### 4. Register the Web App
 1.  In the Project Overview page, click the **Web icon (`</>`)** to register a new web app.
-2.  Name it `ZimBus Web Client`.
+2.  Name it `Inter Africa Web Client`.
 3.  Copy the `firebaseConfig` object and create a `firebase-applet-config.json` file in the root directory.
 
 ```json

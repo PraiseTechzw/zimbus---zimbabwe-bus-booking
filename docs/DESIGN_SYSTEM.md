@@ -1,10 +1,10 @@
-# ZimBus Design System
+# Inter Africa Design System
 
-This document outlines the brand and visual identity of the ZimBus platform.
+This document outlines the brand and visual identity of the Inter Africa platform.
 
 ## 🎨 Creative Direction
 
-ZimBus is built with a **Premium, Modern, and Trusted** aesthetic. We focus on:
+Inter Africa is built with a **Premium, Modern, and Trusted** aesthetic. We focus on:
 - **Clarity**: High contrast typography and simple UI paths.
 - **Modernity**: Using Glass-morphism, subtle gradients, and rounded corners.
 - **Engagement**: Bringing the UI to life with micro-animations and parallax.

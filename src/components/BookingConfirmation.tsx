@@ -3,6 +3,7 @@ import { CheckCircle2, MapPin, Calendar, Clock, User, Bus as BusIcon, Download, 
 import { Bus } from '../types';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { BRAND_NAME } from '../constants';
 
 interface BookingConfirmationProps {
   bus: Bus;
@@ -35,7 +36,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ bus, s
       });
       
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-      pdf.save(`ZimBus-Ticket-${bookingId}.pdf`);
+      pdf.save(`${BRAND_NAME.replace(/\s+/g, '-')}-Ticket-${bookingId}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
     } finally {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { X, Mail, Lock, UserPlus, LogIn, RefreshCw, ShieldCheck } from 'lucide-react';
+import { BRAND_NAME } from '../constants';
 
 export type AuthMode = 'signin' | 'signup';
 
@@ -115,7 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           >
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-white">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">ZimBus Access</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">{BRAND_NAME} Access</p>
                 <h2 className="text-2xl font-black text-gray-900 tracking-tight mt-1">
                   {mode === 'signin' ? 'Sign in to book' : 'Create your account'}
                 </h2>

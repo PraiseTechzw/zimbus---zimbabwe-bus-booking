@@ -1,11 +1,11 @@
-# 🚍 ZimBus | Zimbabwe's #1 Bus Booking Platform
+# 🚍 Inter Africa | Zimbabwe's Bus Booking Platform
 
 <div align="center">
-  <img width="1200" height="auto" alt="ZimBus Logo" src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=1200" />
+  <img width="1200" height="auto" alt="Inter Africa Logo" src="https://interafrica.co.zw/images/weblogo.png" />
   
   <p align="center">
     <strong>Experience the future of travel in Zimbabwe.</strong><br />
-    A modern, secure, and fast platform to book your bus tickets from anywhere, anytime.
+    A modern, secure, and fast platform to book your bus tickets on Inter Africa routes and partner services.
   </p>
   
   <p align="center">
@@ -55,8 +55,8 @@
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/PraiseTechzw/zimbus---zimbabwe-bus-booking.git
-    cd zimbus---zimbabwe-bus-booking
+    git clone https://github.com/PraiseTechzw/inter-africa-booking.git
+    cd inter-africa-booking
     ```
 
 2.  **Install dependencies:**

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BUS_OPERATORS } from '../constants';
+import { BRAND_NAME, PRIMARY_OPERATOR } from '../constants';
 import { Bus as BusIcon, ChevronLeft, Star, ShieldCheck, Clock, Users, Wifi, Wind, Zap, Coffee } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -16,12 +16,12 @@ export const OperatorsList: React.FC<OperatorsListProps> = ({ onBack }) => {
   };
 
   const operatorDetails = [
-    { name: 'Intercape', rating: 4.8, reviews: 1250, fleet: 45, amenities: ['WiFi', 'AC', 'Charging', 'Refreshments'], description: 'Luxury travel across Southern Africa with premium comfort and safety.' },
-    { name: 'CAG Travellers', rating: 4.5, reviews: 850, fleet: 30, amenities: ['AC', 'Charging'], description: 'Reliable and affordable travel connecting major cities in Zimbabwe.' },
-    { name: 'City Link', rating: 4.9, reviews: 600, fleet: 15, amenities: ['WiFi', 'AC', 'Refreshments'], description: 'Premium express service with direct routes and top-tier amenities.' },
-    { name: 'Zupco', rating: 3.8, reviews: 2100, fleet: 120, amenities: ['AC'], description: 'The national carrier providing extensive coverage across the entire country.' },
-    { name: 'Rimbi Tours', rating: 4.2, reviews: 450, fleet: 20, amenities: ['AC', 'Charging'], description: 'Modern fleet with a focus on punctuality and passenger comfort.' },
-    { name: 'Pioneer Coaches', rating: 4.6, reviews: 780, fleet: 25, amenities: ['WiFi', 'AC'], description: 'Decades of experience in providing safe and reliable long-distance travel.' },
+    { name: PRIMARY_OPERATOR, rating: 4.9, reviews: 1840, fleet: 60, amenities: ['WiFi', 'AC', 'Charging', 'Refreshments'], description: 'Primary Inter Africa service for direct routes and branded travel experiences.' },
+    { name: 'Intercape', rating: 4.8, reviews: 1250, fleet: 45, amenities: ['WiFi', 'AC', 'Charging', 'Refreshments'], description: 'Partner operator used when a route does not have Inter Africa service.' },
+    { name: 'CAG Travellers', rating: 4.5, reviews: 850, fleet: 30, amenities: ['AC', 'Charging'], description: 'Partner operator used as an alternative on selected routes.' },
+    { name: 'City Link', rating: 4.9, reviews: 600, fleet: 15, amenities: ['WiFi', 'AC', 'Refreshments'], description: 'Partner operator used for fallback coverage on limited corridors.' },
+    { name: 'Zupco', rating: 3.8, reviews: 2100, fleet: 120, amenities: ['AC'], description: 'Partner operator used for fallback service where Inter Africa does not run direct trips.' },
+    { name: 'Rimbi Tours', rating: 4.2, reviews: 450, fleet: 20, amenities: ['AC', 'Charging'], description: 'Partner operator used to provide alternative options on unavailable routes.' },
   ];
 
   return (
@@ -35,8 +35,8 @@ export const OperatorsList: React.FC<OperatorsListProps> = ({ onBack }) => {
           <span className="font-bold text-sm uppercase tracking-wider">Back to Home</span>
         </button>
         <div className="text-right">
-          <h2 className="text-3xl font-black text-gray-900">Bus Operators</h2>
-          <p className="text-gray-500 font-medium">Meet the companies that keep Zimbabwe moving</p>
+          <h2 className="text-3xl font-black text-gray-900">{BRAND_NAME} Network</h2>
+          <p className="text-gray-500 font-medium">Inter Africa comes first. Partner operators appear only when a route has no Inter Africa service.</p>
         </div>
       </div>
 

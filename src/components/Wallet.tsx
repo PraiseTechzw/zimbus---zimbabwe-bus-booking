@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, Plus, ArrowDown, ArrowUp, Eye, EyeOff, AlertCircle, CheckCircle2, History, Zap } from 'lucide-react';
 import { UserWallet, WalletTransaction } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { BRAND_NAME } from '../constants';
 
 interface WalletProps {
   userId: string;
@@ -142,7 +143,7 @@ export const Wallet: React.FC<WalletProps> = ({ userId, onBack }) => {
       )}
 
       <div>
-        <h1 className="text-3xl font-black text-gray-900">ZimBus Wallet</h1>
+        <h1 className="text-3xl font-black text-gray-900">{BRAND_NAME} Wallet</h1>
         <p className="text-gray-500 font-medium">Manage your travel credits</p>
       </div>
 

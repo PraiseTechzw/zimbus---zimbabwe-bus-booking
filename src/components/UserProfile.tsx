@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../firebase';
 import { updateProfile, User as FirebaseUser } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
+import { BRAND_NAME } from '../constants';
 
 interface UserProfileProps {
   user: FirebaseUser;
@@ -84,7 +85,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onBack, onLogout
               </div>
               <div>
                 <h3 className="text-2xl font-black text-gray-900 tracking-tight">{user.displayName}</h3>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">ZimBus Premium Member</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{BRAND_NAME} Premium Member</p>
               </div>
               <div className="pt-6 border-t border-gray-50 w-full grid grid-cols-2 gap-4">
                 <div className="text-center">

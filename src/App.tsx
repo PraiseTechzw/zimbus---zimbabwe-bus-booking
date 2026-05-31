@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, googleProvider, OperationType, handleFirestoreError } from './firebase';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, addDoc, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { BRAND_LOGO_URL, BRAND_NAME, PRIMARY_OPERATOR, SUPPORT_EMAIL } from './constants';
 
 // Feature Components
 import { MyBookings } from './components/MyBookings';
@@ -83,17 +84,29 @@ function MainApp() {
   const availableOperators = useMemo(() => {
     if (!searchResults) return [];
 
-    return Array.from(new Set(searchResults.map((bus) => bus.operator))).sort((a, b) =>
+    const sourceResults = searchResults.some((bus) => bus.operator === PRIMARY_OPERATOR)
+      ? searchResults.filter((bus) => bus.operator === PRIMARY_OPERATOR)
+      : searchResults;
+
+    return Array.from(new Set(sourceResults.map((bus) => bus.operator))).sort((a, b) =>
       a.localeCompare(b)
     );
+  }, [searchResults]);
+
+  const hasPrimaryOperatorService = useMemo(() => {
+    return searchResults?.some((bus) => bus.operator === PRIMARY_OPERATOR) ?? false;
   }, [searchResults]);
 
   const visibleSearchResults = useMemo(() => {
     if (!searchResults) return [];
 
-    const filtered = searchResults.filter(
-      (bus) => !filterOperator || bus.operator === filterOperator
-    );
+    const preferredResults = hasPrimaryOperatorService
+      ? searchResults.filter((bus) => bus.operator === PRIMARY_OPERATOR)
+      : searchResults;
+
+    const filtered = filterOperator && (!hasPrimaryOperatorService || filterOperator === PRIMARY_OPERATOR)
+      ? preferredResults.filter((bus) => bus.operator === filterOperator)
+      : preferredResults;
 
     return [...filtered].sort((a, b) => {
       if (sortBy === 'price') return a.price - b.price;
@@ -105,7 +118,7 @@ function MainApp() {
 
       return a.departureTime.localeCompare(b.departureTime);
     });
-  }, [searchResults, filterOperator, sortBy]);
+  }, [searchResults, filterOperator, sortBy, hasPrimaryOperatorService]);
 
   useEffect(() => {
     if (filterOperator && !availableOperators.includes(filterOperator)) {
@@ -321,7 +334,7 @@ function MainApp() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" />
-        <p className="text-gray-500 font-bold animate-pulse">Loading ZimBus...</p>
+        <p className="text-gray-500 font-bold animate-pulse">Loading Inter Africa...</p>
       </div>
     );
   }
@@ -340,11 +353,11 @@ function MainApp() {
       <nav className="glass-morphism sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
-            <div className="flex items-center gap-2 cursor-pointer transition-transform hover:scale-105 active:scale-95" onClick={resetFlow}>
-              <div className="custom-gradient p-2 rounded-xl text-white shadow-lg shadow-orange-200">
-                <BusIcon size={24} />
+            <div className="flex items-center gap-3 cursor-pointer transition-transform hover:scale-105 active:scale-95" onClick={resetFlow}>
+              <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                <img src={BRAND_LOGO_URL} alt={`${BRAND_NAME} logo`} className="h-10 w-auto object-contain" referrerPolicy="no-referrer" />
               </div>
-              <span className="text-2xl font-black tracking-tighter text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">ZimBus</span>
+              <span className="text-2xl font-black tracking-tighter text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">{BRAND_NAME}</span>
             </div>
 
             {/* Desktop Menu */}
@@ -502,7 +515,7 @@ function MainApp() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
                     </span>
-                    Zimbabwe's #1 Booking Platform
+                    Inter Africa's booking platform
                   </div>
                   <motion.h1 
                     initial={{ opacity: 0, y: 20 }}
@@ -518,7 +531,7 @@ function MainApp() {
                     transition={{ delay: 0.3 }}
                     className="text-xl text-gray-300 font-medium max-w-2xl mx-auto leading-relaxed"
                   >
-                    Experience seamless travel with ZimBus. Book your bus tickets online with ease. Safe, reliable, and affordable travel across all major cities.
+                    Experience seamless travel with Inter Africa. Book your bus tickets online with ease. Safe, reliable, and affordable travel across Inter Africa routes and trusted partner services.
                   </motion.p>
                 </div>
               </div>
@@ -617,6 +630,11 @@ function MainApp() {
                   </button>
                   <h2 className="text-4xl font-black text-gray-900 tracking-tight">{visibleSearchResults.length} Buses Available</h2>
                   <p className="text-gray-500 font-medium">Found for your selected route</p>
+                  <p className="text-sm font-semibold text-orange-600">
+                    {hasPrimaryOperatorService
+                      ? 'Inter Africa service is available on this route.'
+                      : 'No Inter Africa buses on this route yet. Showing partner operators as alternatives.'}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 bg-white p-2 rounded-[1.5rem] border border-gray-100 shadow-sm">
@@ -649,8 +667,9 @@ function MainApp() {
                       value={filterOperator || ''} 
                       onChange={(e) => setFilterOperator(e.target.value || null)}
                       className="bg-transparent text-[10px] font-black uppercase tracking-widest text-gray-400 outline-none cursor-pointer hover:text-orange-600 transition-colors"
+                      disabled={hasPrimaryOperatorService && availableOperators.length === 1}
                     >
-                      <option value="">All Operators</option>
+                      <option value="">{hasPrimaryOperatorService ? 'Inter Africa Only' : 'All Operators'}</option>
                       {availableOperators.map(op => (
                         <option key={op} value={op}>{op}</option>
                       ))}
@@ -679,7 +698,7 @@ function MainApp() {
                       <h3 className="text-2xl font-black text-gray-900 tracking-tight">No buses found</h3>
                       <p className="text-gray-500 font-medium max-w-sm mx-auto">
                         {searchResults.length > 0
-                          ? 'No buses match the selected operator filter. Try choosing All Operators.'
+                          ? 'No buses match the selected operator filter. Try choosing Inter Africa Only or switch to partner services.'
                           : 'We could not find any buses for your search. Try a different route or date.'}
                       </p>
                     </div>
@@ -1035,13 +1054,13 @@ function MainApp() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             <div className="space-y-6">
               <div className="flex items-center gap-2 cursor-pointer" onClick={resetFlow}>
-                <div className="bg-orange-600 p-2 rounded-xl text-white">
-                  <BusIcon size={20} />
+                <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                  <img src={BRAND_LOGO_URL} alt={`${BRAND_NAME} logo`} className="h-8 w-auto object-contain" referrerPolicy="no-referrer" />
                 </div>
-                <span className="text-xl font-black tracking-tighter text-gray-900">ZimBus</span>
+                <span className="text-xl font-black tracking-tighter text-gray-900">{BRAND_NAME}</span>
               </div>
               <p className="text-gray-500 text-sm leading-relaxed">
-                Zimbabwe's leading online bus booking platform. Connecting you to every corner of the country with comfort and safety.
+                Inter Africa connects travelers with direct services first, then trusted partner operators when a route needs a fallback.
               </p>
               <div className="flex items-center gap-4">
                 <a href="#" className="p-2 bg-gray-50 text-gray-400 hover:text-orange-600 transition-colors rounded-lg"><Instagram size={18} /></a>
@@ -1079,7 +1098,7 @@ function MainApp() {
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-500 font-medium">
                   <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><Mail size={16} /></div>
-                  <span>support@zimbus.co.zw</span>
+                  <span>{SUPPORT_EMAIL}</span>
                 </div>
               </div>
             </div>
@@ -1087,7 +1106,7 @@ function MainApp() {
           
           <div className="pt-10 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-              © 2026 ZimBus Zimbabwe. All rights reserved.
+              © 2026 Inter Africa. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png" alt="Visa" className="h-4 opacity-30 grayscale hover:grayscale-0 transition-all" />

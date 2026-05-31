@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, Phone, Mail, MessageSquare, HelpCircle, ChevronDown, ChevronUp, Send, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { SUPPORT_EMAIL } from '../constants';
 
 interface SupportProps {
   onBack: () => void;
@@ -143,7 +144,7 @@ export const Support: React.FC<SupportProps> = ({ onBack }) => {
                 <div className="p-2 bg-white/10 rounded-lg"><Mail size={20} /></div>
                 <div>
                   <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest">Email us</p>
-                  <p className="font-bold">support@zimbus.co.zw</p>
+                  <p className="font-bold">{SUPPORT_EMAIL}</p>
                   <p className="text-xs text-orange-100">We reply within 24h</p>
                 </div>
               </div>

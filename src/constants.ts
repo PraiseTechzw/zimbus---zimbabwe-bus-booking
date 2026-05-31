@@ -13,7 +13,12 @@ export const ZIM_CITIES: City[] = [
   { name: 'Kadoma', code: 'KDM' },
 ];
 
-export const BUS_OPERATORS = [
+export const BRAND_NAME = 'Inter Africa';
+export const BRAND_LOGO_URL = 'https://interafrica.co.zw/images/weblogo.png';
+export const SUPPORT_EMAIL = 'support@interafrica.co.zw';
+export const PRIMARY_OPERATOR = 'Inter Africa';
+
+export const PARTNER_OPERATORS = [
   'Intercape',
   'CAG Travellers',
   'Zupco',
@@ -21,6 +26,11 @@ export const BUS_OPERATORS = [
   'City Link',
   'Extra City',
   'Rimbi Tours',
+];
+
+export const BUS_OPERATORS = [
+  PRIMARY_OPERATOR,
+  ...PARTNER_OPERATORS,
 ];
 
 const CITY_WEIGHT: Record<string, number> = {
@@ -81,6 +91,7 @@ const buildRoutePrice = (durationMinutes: number, operatorIndex: number): number
 };
 
 const buildSeatCapacity = (operator: string): number => {
+  if (operator === PRIMARY_OPERATOR) return 58;
   if (operator === 'Zupco') return 65;
   if (operator === 'Intercape') return 50;
   return 55;
@@ -94,14 +105,15 @@ const generateZimbabweRouteNetwork = (): Bus[] => {
     ZIM_CITIES.forEach((toCity, toIndex) => {
       if (fromCity.name === toCity.name) return;
 
-      const operatorIndex = (fromIndex * 3 + toIndex * 5) % BUS_OPERATORS.length;
-      const operator = BUS_OPERATORS[operatorIndex];
+      const routeKey = fromIndex + toIndex;
+      const operatorIndex = (fromIndex * 3 + toIndex * 5) % PARTNER_OPERATORS.length;
+      const operator = routeKey % 6 === 0 ? PARTNER_OPERATORS[operatorIndex] : PRIMARY_OPERATOR;
       const departureTime = DEPARTURE_SLOTS[(fromIndex + toIndex) % DEPARTURE_SLOTS.length];
       const durationMinutes = estimateDurationMinutes(fromCity.name, toCity.name);
       const arrivalTime = toTime(toMinutes(departureTime) + durationMinutes);
-      const price = buildRoutePrice(durationMinutes, operatorIndex);
+      const price = buildRoutePrice(durationMinutes, routeKey % 6 === 0 ? operatorIndex : 0);
       const totalSeats = buildSeatCapacity(operator);
-      const availabilitySeed = (fromIndex * 7 + toIndex * 11 + operatorIndex * 3) % 18;
+      const availabilitySeed = (fromIndex * 7 + toIndex * 11 + routeKey * 3) % 18;
       const availableSeats = Math.max(6, totalSeats - (availabilitySeed + 4));
       const amenities = buildAmenities(durationMinutes, fromIndex + toIndex);
 

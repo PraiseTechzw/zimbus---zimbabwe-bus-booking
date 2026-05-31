@@ -1,10 +1,10 @@
-# ZimBus Project Architecture
+# Inter Africa Project Architecture
 
-This document describes the high-level architecture of the ZimBus platform.
+This document describes the high-level architecture of the Inter Africa platform.
 
 ## 🏗️ Technical Architecture
 
-ZimBus is a modern, single-page application (SPA) built with React and powered by a serverless backend using Firebase.
+Inter Africa is a modern, single-page application (SPA) built with React and powered by a serverless backend using Firebase.
 
 ### Frontend Layer (React + Vite)
 The application is built using React for UI components and Vite for extreme build performance and hot reloading.
