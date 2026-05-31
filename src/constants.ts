@@ -14,7 +14,7 @@ export const ZIM_CITIES: City[] = [
 ];
 
 export const BRAND_NAME = 'Inter Africa';
-export const BRAND_LOGO_URL = 'https://interafrica.co.zw/images/weblogo.png';
+export const BRAND_LOGO_URL = '/weblogo.png';
 export const SUPPORT_EMAIL = 'support@interafrica.co.zw';
 export const PRIMARY_OPERATOR = 'Inter Africa';
 
